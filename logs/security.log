@@ -1,0 +1,3 @@
+2025-12-07 15:53:04,662 [WARNING] security: Blocked dangerous pattern: 'rm -rf'
+2025-12-07 15:53:04,662 [WARNING] security: Blocked dangerous pattern: 'shutdown'
+2025-12-07 15:53:04,663 [WARNING] security: Blocked dangerous pattern: 'format C:'

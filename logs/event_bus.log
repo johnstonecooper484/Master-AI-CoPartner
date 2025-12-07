@@ -1,3 +1,16 @@
 [2025-12-07 10:14:05][INFO][event_bus] EventBus initialized.
 [2025-12-07 10:14:05][INFO][event_bus] Subscribed to event 'test_event' with callback on_test_event
 [2025-12-07 10:14:05][INFO][event_bus] Publishing event 'test_event' with data: {'msg': 'Hello from main loop'}
+[2025-12-07 10:31:39][INFO][event_bus] EventBus initialized.
+[2025-12-07 10:39:14][INFO][event_bus] EventBus initialized.
+[2025-12-07 10:39:14][WARNING][event_bus] No subscribers for event 'ai_input'
+[2025-12-07 10:39:14][WARNING][event_bus] No subscribers for event 'ai_response'
+[2025-12-07 16:12:33][INFO][event_bus] EventBus initialized.
+[2025-12-07 16:12:33][INFO][event_bus] Subscribed to event 'test_event' with callback on_test_event
+[2025-12-07 16:12:33][INFO][event_bus] Publishing event 'test_event' with data: {'msg': 'Hello from main loop'}
+[2025-12-07 16:16:27][INFO][event_bus] EventBus initialized.
+[2025-12-07 16:16:27][INFO][event_bus] Subscribed to event 'test_event' with callback on_test_event
+[2025-12-07 16:16:27][INFO][event_bus] Publishing event 'test_event' with data: {'msg': 'Hello from main loop'}
+[2025-12-07 16:16:40][INFO][event_bus] EventBus initialized.
+[2025-12-07 16:16:40][INFO][event_bus] Subscribed to event 'test_event' with callback on_test_event
+[2025-12-07 16:16:40][INFO][event_bus] Publishing event 'test_event' with data: {'msg': 'Hello from main loop'}

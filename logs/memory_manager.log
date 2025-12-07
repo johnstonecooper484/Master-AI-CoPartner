@@ -1,0 +1,12 @@
+[2025-12-07 10:22:24][INFO][memory_manager] MemoryManager initializing...
+[2025-12-07 10:22:24][INFO][memory_manager] No existing long-term memory file found.
+[2025-12-07 10:22:24][INFO][memory_manager] MemoryManager ready.
+[2025-12-07 10:22:24][INFO][memory_manager] Added memory: 'This is a test memory from self-test.'
+[2025-12-07 10:31:39][INFO][memory_manager] MemoryManager initializing...
+[2025-12-07 10:31:39][INFO][memory_manager] Long-term memory file present with ~1 items.
+[2025-12-07 10:31:39][INFO][memory_manager] MemoryManager ready.
+[2025-12-07 10:31:39][INFO][memory_manager] Added memory: 'CoreManager self-test memory.'
+[2025-12-07 10:39:14][INFO][memory_manager] MemoryManager initializing...
+[2025-12-07 10:39:14][INFO][memory_manager] Long-term memory file present with ~2 items.
+[2025-12-07 10:39:14][INFO][memory_manager] MemoryManager ready.
+[2025-12-07 10:39:14][INFO][memory_manager] Added memory: 'Hey, remember this config, I will need this later.'

@@ -1,0 +1,5 @@
+[2025-12-07 10:31:39][INFO][ai_engine] AIEngine initialized.
+[2025-12-07 10:39:14][INFO][ai_engine] AIEngine initialized (memory_attached=True)
+[2025-12-07 10:39:14][INFO][ai_engine] Processing message: 'Hey, remember this config, I will need this later.'
+[2025-12-07 10:39:14][INFO][ai_engine] Stored message in memory with priority=high
+[2025-12-07 10:39:14][INFO][ai_engine] Generated response: 'I heard you say: Hey, remember this config, I will need this later.'
