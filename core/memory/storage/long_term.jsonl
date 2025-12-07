@@ -1,3 +1,6 @@
 {"id": "80d358e5-9b44-4cf3-8238-d0552b0f4ed8", "timestamp": "2025-12-07T16:22:24.957987Z", "text": "This is a test memory from self-test.", "metadata": {"source": "self_test"}}
 {"id": "5ee7f091-8438-4a0c-8f86-a273ba35f3ae", "timestamp": "2025-12-07T16:31:39.982113Z", "text": "CoreManager self-test memory.", "metadata": {"source": "core_manager_self_test"}}
 {"id": "d59853ce-e835-45a2-bf78-f4927c930139", "timestamp": "2025-12-07T16:39:14.068074Z", "text": "Hey, remember this config, I will need this later.", "metadata": {"source": "core_manager", "priority": "high"}}
+{"id": "2f4f4d0e-816a-4905-806b-49ab968455ba", "timestamp": "2025-12-07T23:17:29.473207Z", "text": "C:\\Dev\\Master-AI-CoPartner>", "metadata": {"source": "core_manager", "priority": "normal"}}
+{"id": "8e4fb673-a991-4f08-9cb2-255d83a30346", "timestamp": "2025-12-07T23:17:48.564557Z", "text": "hello", "metadata": {"source": "core_manager", "priority": "normal"}}
+{"id": "6c1ffc09-5e3d-4bf2-8b4f-fd7f1c24de3c", "timestamp": "2025-12-07T23:30:51.846721Z", "text": "hello", "metadata": {"source": "core_manager", "priority": "normal"}}

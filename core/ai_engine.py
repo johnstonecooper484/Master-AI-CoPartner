@@ -5,12 +5,20 @@ Handles message processing, personality injection, and memory integration.
 """
 
 from typing import Optional, Dict, Any
+import os
+
+from openai import OpenAI
+from dotenv import load_dotenv
 
 from core.logger.logger import get_logger
 from core.event_bus import EventBus
 from core.memory.memory_manager import MemoryManager
 
+
 log = get_logger("ai_engine")
+
+load_dotenv()
+client = OpenAI()
 
 
 class AIEngine:
@@ -48,13 +56,13 @@ class AIEngine:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
-        Main processing pipeline placeholder.
+        Main processing pipeline.
 
         Right now:
         - logs the message
         - optionally stores it in memory
         - fires events on the event bus
-        - returns a simple echo-style response
+        - calls OpenAI for a real response
         """
         if metadata is None:
             metadata = {}
@@ -77,8 +85,30 @@ class AIEngine:
         # Publish events so other systems can react
         self.bus.publish("ai_input", {"text": message, "metadata": metadata})
 
-        # For now, the response is simple – we'll swap this for a real LLM later
-        response = f"I heard you say: {message}"
+        # Use OpenAI to generate a real response
+        try:
+            model_name = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are the user's local AI Co-Partner assistant running on their machine. "
+                            "Be clear, practical, concise, and supportive. The user may have ADHD and "
+                            "memory issues, so keep explanations short and step-by-step when needed."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": message,
+                    },
+                ],
+            )
+            response = completion.choices[0].message.content
+        except Exception as e:
+            log.error(f"OpenAI chat completion failed: {e}")
+            response = "I ran into a problem talking to my AI model. Check your API key, internet connection, and logs."
 
         self.bus.publish("ai_response", {"text": response, "metadata": metadata})
         log.info(f"Generated response: {response!r}")

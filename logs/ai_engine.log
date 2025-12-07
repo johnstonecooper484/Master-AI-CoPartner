@@ -3,3 +3,15 @@
 [2025-12-07 10:39:14][INFO][ai_engine] Processing message: 'Hey, remember this config, I will need this later.'
 [2025-12-07 10:39:14][INFO][ai_engine] Stored message in memory with priority=high
 [2025-12-07 10:39:14][INFO][ai_engine] Generated response: 'I heard you say: Hey, remember this config, I will need this later.'
+[2025-12-07 17:17:22][INFO][ai_engine] AIEngine initialized (memory_attached=True)
+[2025-12-07 17:17:29][INFO][ai_engine] Processing message: 'C:\\Dev\\Master-AI-CoPartner>'
+[2025-12-07 17:17:29][INFO][ai_engine] Stored message in memory with priority=normal
+[2025-12-07 17:17:29][INFO][ai_engine] Generated response: 'I heard you say: C:\\Dev\\Master-AI-CoPartner>'
+[2025-12-07 17:17:48][INFO][ai_engine] Processing message: 'hello'
+[2025-12-07 17:17:48][INFO][ai_engine] Stored message in memory with priority=normal
+[2025-12-07 17:17:48][INFO][ai_engine] Generated response: 'I heard you say: hello'
+[2025-12-07 17:30:46][INFO][ai_engine] AIEngine initialized (memory_attached=True)
+[2025-12-07 17:30:51][INFO][ai_engine] Processing message: 'hello'
+[2025-12-07 17:30:51][INFO][ai_engine] Stored message in memory with priority=normal
+[2025-12-07 17:30:55][ERROR][ai_engine] OpenAI chat completion failed: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+[2025-12-07 17:30:55][INFO][ai_engine] Generated response: 'I ran into a problem talking to my AI model. Check your API key, internet connection, and logs.'
