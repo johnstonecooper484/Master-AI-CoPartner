@@ -10,3 +10,18 @@ __pycache__/
 # Ignore virtual environments
 .venv/
 venv/
+
+# Ignore logs and memory files
+logs/
+config/logs/
+core/logs/
+*.log
+*.jsonl
+
+# Ignore Python cache
+__pycache__/
+core/__pycache__/
+config/__pycache__/
+
+# Ignore memory storage
+core/memory/storage/*.jsonl
