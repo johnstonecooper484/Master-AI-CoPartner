@@ -1,87 +1,78 @@
-"""
-core/main.py
+"""main.py
 
-Entry point for the Master AI Co-Partner system.
+Top-level entrypoint for the Master AI Co-Partner.
 
 Right now this:
-- Loads global settings
-- Initializes logging
-- Logs a startup summary
-- Chooses behavior based on MACHINE_ROLE (main / vision_node / worker)
+- Sets up EventBus, MemoryManager, and AIEngine
+- Prints current mode (offline / online)
+- Starts a simple CLI loop so John can talk to the system
 
-Later, this will:
-- Start the main event loop
-- Wire in voice, camera, task engine, etc.
+Later this will be replaced / extended with:
+- Hotkey handler
+- Voice I/O
+- Multi-machine coordination
 """
 
 from __future__ import annotations
 
+from typing import Optional
+
 from config import settings
 from core.logger import get_logger
-
+from core.event_bus import EventBus
+from core.memory.memory_manager import MemoryManager
+from core.ai_engine import AIEngine
 
 log = get_logger("core_main")
 
 
-def run_main_role() -> None:
-    """
-    Behavior for the MAIN machine (primary interaction node).
-    For now, just a placeholder with clear logging.
-    """
-    log.info("Running in MAIN role (primary interaction node).")
-    # TODO: hook up:
-    # - Voice I/O
-    # - Command router
-    # - UI / hotkeys
-    # - Task engine entry point
+def build_engine(offline_only: Optional[bool] = None) -> AIEngine:
+    """Factory to build the AIEngine with standard wiring."""
+    bus = EventBus()
+    memory = MemoryManager()
+    engine = AIEngine(event_bus=bus, memory=memory, offline_only=offline_only)
+    return engine
 
 
-def run_vision_role() -> None:
-    """
-    Behavior for the VISION_NODE machine.
-    """
-    log.info("Running in VISION_NODE role (camera / vision processing).")
-    # TODO: hook up:
-    # - Webcam/Kinect capture
-    # - Frame processing
-    # - Event bus publishing
+def print_startup_banner(engine: AIEngine) -> None:
+    mode = "OFFLINE" if engine.offline_only else "ONLINE-capable"
+    print("=== Master AI Co-Partner ===")
+    print(f"Active mode: {mode}")
+    print(f"Settings ACTIVE_MODE: {settings.ACTIVE_MODE}")
+    print("Type something and press Enter. Type 'quit' to exit.\n")
 
 
-def run_worker_role() -> None:
-    """
-    Behavior for the WORKER machine.
-    """
-    log.info("Running in WORKER role (heavy tools / coding engine).")
-    # TODO: hook up:
-    # - Code assistant backend
-    # - Heavy jobs
-    # - Integrations
+def interactive_loop(engine: AIEngine) -> None:
+    """Very simple text-based UI."""
+    while True:
+        try:
+            text = input("You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n[Exiting Co-Partner main loop]")
+            break
+
+        if not text:
+            continue
+        if text.lower() in {"quit", "exit"}:
+            print("[Goodbye from Co-Partner]")
+            break
+
+        reply = engine.process(text, {"source": "core_main_cli"})
+        print("AI:", reply)
+        print()
 
 
 def main() -> None:
-    """
-    Main entry point for the AI Co-Partner.
+    """Main entrypoint used by `python -m core.main`."""
+    log.info("Starting Master AI Co-Partner core.main")
 
-    This should be the ONLY place that decides what to start
-    based on the machine role.
-    """
-    log.info("=== Master AI Co-Partner starting up ===")
-    log.info(settings.debug_dump())
+    # For now, we trust settings / engine defaults to decide offline vs online.
+    engine = build_engine()
 
-    try:
-        if settings.IS_MAIN:
-            run_main_role()
-        elif settings.IS_VISION_NODE:
-            run_vision_role()
-        elif settings.IS_WORKER:
-            run_worker_role()
-        else:
-            log.error(f"Unknown MACHINE_ROLE: {settings.MACHINE_ROLE!r}")
-    except Exception as exc:
-        log.exception(f"Fatal error in main(): {exc}")
-        raise
-    finally:
-        log.info("=== Master AI Co-Partner shutdown ===")
+    print_startup_banner(engine)
+    interactive_loop(engine)
+
+    log.info("Shutting down Master AI Co-Partner core.main")
 
 
 if __name__ == "__main__":
