@@ -1,0 +1,55 @@
+OFFICIAL PROJECT REPOSITORY
+
+This project’s official GitHub repository is:
+
+https://github.com/johnstonecooper484/Master-AI-CoPartner
+
+
+IMPORTANT STRUCTURE NOTE
+
+This repository contains a folder called:
+
+/resources/
+
+Inside /resources/ there are three key subfolders:
+
+1) /resources/pdfs/
+   - Learning material
+   - AI books, guides, and research PDFs
+   - Reference only (not code reuse)
+
+2) /resources/open_source_reference/
+   - Open-source projects used ONLY as reference
+   - Examples:
+     - discord.py
+     - keyboard
+     - python twitch chatbot
+   - These are NOT to be copied directly into production
+
+3) /resources/research_archives/
+   - AI agent collections
+   - Research datasets
+   - Documentation archives
+
+
+USAGE RULE
+
+All materials in /resources are for:
+- Learning
+- Studying structure
+- Rebuilding functionality in original code only
+
+No direct copying into production systems is permitted.
+
+
+LOCAL PROJECT ROOT (for Python tools)
+
+C:\Dev\Master-AI-CoPartner
+
+
+STATUS
+
+This resource library is now considered:
+ACTIVE
+AUTHORIZED
+AND SAFE FOR REFERENCE
