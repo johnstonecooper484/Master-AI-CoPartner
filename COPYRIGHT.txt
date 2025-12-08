@@ -1,0 +1,11 @@
+Copyright (c) 2024 John
+
+Project: Master AI Co-Partner
+
+All rights reserved.
+
+Unauthorized copying, distribution, modification, or commercial use
+of this project, in whole or in part, is strictly prohibited without
+explicit written permission from the copyright owner.
+
+This project is provided for reference and educational purposes only.
