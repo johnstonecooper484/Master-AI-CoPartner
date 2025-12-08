@@ -1,12 +1,4 @@
-"""ai_engine.py
-
-Core reasoning engine for the AI Co-Partner.
-
-- Handles message processing
-- Applies simple priority rules for memory
-- Publishes events
-- Chooses OFFLINE vs ONLINE generation based on config/settings
-"""
+"""ai_engine.py - clean rewritten version"""
 
 from __future__ import annotations
 
@@ -14,182 +6,261 @@ from typing import Optional, Dict, Any
 import os
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 from config import settings
 from core.logger import get_logger
 from core.event_bus import EventBus
 from core.memory.memory_manager import MemoryManager
 
-log = get_logger("ai_engine")
-
 load_dotenv()
-client = OpenAI()
+
+log = get_logger("ai_engine")
 
 
 class AIEngine:
-    """Main brain wrapper for the Co-Partner."""
-
     def __init__(
         self,
         event_bus: EventBus,
         memory: Optional[MemoryManager] = None,
         offline_only: Optional[bool] = None,
-    ):
+    ) -> None:
         self.bus = event_bus
         self.memory = memory
-        # If not explicitly overridden, follow global settings
         self.offline_only = (
             settings.OFFLINE_ONLY if offline_only is None else offline_only
         )
 
         log.info(
-            "AIEngine initialized "
-            f"(memory_attached={bool(memory)}, offline_only={self.offline_only})"
+            "AIEngine initialized (memory_attached=%s, offline_only=%s)",
+            bool(memory),
+            self.offline_only,
         )
 
-    # ------------------------------------------------------------------
-    # Priority tagging for memory
-    # ------------------------------------------------------------------
-    def _infer_priority(self, message: str) -> str:
-        """Very simple rule to decide if something is 'important'."""
+    def _infer_priority(self, message: str, metadata: Dict[str, Any]) -> str:
         text = message.lower()
-        trigger_words = [
+
+        high_markers = [
             "remember this",
             "don't forget",
-            "dont forget",
-            "save this",
-            "i'll need this",
-            "i will need this",
-            "this is important",
+            "important",
+            "my schedule",
+            "medical",
+            "emergency",
+            "password",
+            "login",
         ]
-        for t in trigger_words:
-            if t in text:
-                return "high"
+        todo_markers = [
+            "remind me",
+            "i need to",
+            "i have to",
+            "i must",
+            "todo",
+            "task",
+        ]
+
+        if any(m in text for m in high_markers) or any(
+            m in text for m in todo_markers
+        ):
+            return "high"
+
+        if len(text) < 10:
+            return "low"
+
         return "normal"
 
-    # ------------------------------------------------------------------
-    # Offline vs online routing
-    # ------------------------------------------------------------------
-    def _call_offline(self, message: str, metadata: Dict[str, Any]) -> str:
-        """Offline stub response (v0).
-
-        This keeps the system usable with no internet or API key.
-        Later, this will call a real local LLM.
-        """
-        log.info("Using OFFLINE response path.")
-        # Super simple behaviour for now:
-        # - acknowledge offline mode
-        # - lightly echo what was said
-        # - keep it short and practical
-        trimmed = message.strip()
-        if not trimmed:
-            return "I'm in offline mode and you didn't say much. Try again with a bit more detail."
-
-        return (
-            "Offline brain v0 here. I don't have a full local model yet, but I heard you say:\n"
-            f"→ {trimmed}\n\n"
-            "For now I can help you organize tasks, next steps, and simple logic. "
-            "When we wire in the real local model, I'll get a lot smarter."
-        )
-
-    def _call_online(self, message: str, metadata: Dict[str, Any]) -> str:
-        """Online response via OpenAI, with safe fallback to offline stub."""
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            log.warning("OPENAI_API_KEY not set; falling back to offline path.")
-            return self._call_offline(message, metadata)
-
-        try:
-            model_name = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are John's local AI Co-Partner assistant running on his machine. "
-                            "Be clear, practical, concise, and supportive. John has ADHD, dyslexia, "
-                            "and memory issues, so keep explanations short and step-by-step when needed. "
-                            "Follow the Master Control and Blueprint rules baked into this system."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": message,
-                    },
-                ],
-            )
-            response = completion.choices[0].message.content
-            log.info("Received response from OpenAI backend.")
-            return response
-
-        except Exception as e:
-            log.error(f"OpenAI chat completion failed: {e}")
-            return self._call_offline(message, metadata)
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-    def process(
-        self,
-        message: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> str:
-        """Main processing pipeline.
-
-        - logs the message
-        - optionally stores it in memory
-        - fires events on the event bus
-        - chooses OFFLINE or ONLINE response path
-        """
+    def process(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         if metadata is None:
             metadata = {}
 
-        log.info(f"Processing message: {message!r}")
+        source = metadata.get("source", "unknown")
+        log.info("AIEngine.process called from source=%r", source)
 
-        # Decide memory priority
-        priority = self._infer_priority(message)
-        metadata.setdefault("source", "ai_engine")
-        metadata.setdefault("priority", priority)
+        priority = self._infer_priority(message, metadata)
+        log.info("Inferred memory priority=%r", priority)
 
-        # Store in memory if available
-        if self.memory is not None:
+        if self.memory:
             try:
-                self.memory.add_memory(message, metadata)
-                log.info(f"Stored message in memory with priority={priority}")
+                self.memory.store_message(
+                    message=message,
+                    metadata=metadata,
+                    priority=priority,
+                )
+                log.info("Stored message in memory with priority=%s", priority)
             except Exception as e:
-                log.error(f"Failed to store memory: {e}")
+                log.exception("Failed to store message in memory: %s", e)
 
-        # Publish events so other systems can react
-        self.bus.publish("ai_input", {"text": message, "metadata": metadata})
+        try:
+            self.bus.publish(
+                "ai.message_received",
+                {
+                    "message": message,
+                    "metadata": metadata,
+                    "priority": priority,
+                },
+            )
+        except Exception as e:
+            log.exception("Failed to publish message_received event: %s", e)
 
-        # Decide which brain to use
-        if self.offline_only or settings.ACTIVE_MODE == settings.MODE_OFFLINE_ONLY:
-            response = self._call_offline(message, metadata)
+        if self.offline_only or not settings.ONLINE_FEATURES_ENABLED:
+            log.info("Using OFFLINE response path.")
+            reply = self._call_offline(message, metadata)
         else:
-            response = self._call_online(message, metadata)
+            try:
+                reply = self._call_online(message, metadata)
+            except Exception as e:
+                log.exception(
+                    "Online call failed; falling back to offline. Error: %s", e
+                )
+                reply = self._call_offline(message, metadata)
 
-        # Publish response for other modules
-        self.bus.publish("ai_response", {"text": response, "metadata": metadata})
-        log.info(f"Generated response: {response!r}")
+        try:
+            self.bus.publish(
+                "ai.message_replied",
+                {
+                    "message": message,
+                    "reply": reply,
+                    "metadata": metadata,
+                    "priority": priority,
+                },
+            )
+        except Exception as e:
+            log.exception("Failed to publish message_replied event: %s", e)
 
-        return response
+        return reply
+
+    def _call_offline(self, message: str, metadata: Dict[str, Any]) -> str:
+        """Offline mode with optional local model support (LM Studio)."""
+
+        import requests
+
+        local_endpoint = os.getenv("LOCAL_LLM_ENDPOINT")
+        local_model_id = os.getenv("LOCAL_LLM_MODEL_ID", "google_gemma-3-4b-it")
+
+        if local_endpoint:
+            log.info("Attempting LOCAL LLM endpoint: %s", local_endpoint)
+
+            try:
+                payload = {
+                    "model": local_model_id,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are John's local AI Co-Partner running on his PC. "
+                                "Be concise, practical, and supportive. He has dyslexia "
+                                "and memory issues, so keep answers clear and step-by-step."
+                            ),
+                        },
+                        {"role": "user", "content": message},
+                    ],
+                }
+
+                response = requests.post(local_endpoint, json=payload, timeout=30)
+
+                if response.ok:
+                    data = response.json()
+                    choices = data.get("choices") or []
+                    if choices:
+                        msg = choices[0].get("message", {}) or {}
+                        text = msg.get("content") or choices[0].get("text")
+                        if text:
+                            log.info("Local LLM responded successfully.")
+                            return text.strip()
+                    log.warning(
+                        "Local LLM returned no usable text; falling back to stub."
+                    )
+                else:
+                    log.warning("Local LLM HTTP error: %s", response.status_code)
+            except Exception as e:
+                log.error("Local LLM call failed: %s", e)
+
+        log.info("Using OFFLINE stub response path.")
+        trimmed = message.strip()
+
+        if not trimmed:
+            return "I'm in offline mode, and you did not give me much to work with."
+
+        return (
+            "Offline brain v0 here. I do not have a full local model yet, but I heard you say:\n"
+            f"→ {trimmed}\n\n"
+            "When you give me a real local model endpoint, I'll start thinking much deeper."
+        )
+
+    def _call_online(self, message: str, metadata: Dict[str, Any]) -> str:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            log.warning("OPENAI_API_KEY not set; falling back to offline stub.")
+            return self._call_offline(message, metadata)
+
+        import requests
+
+        log.info("Calling OpenAI online API path.")
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "model": settings.OPENAI_MODEL_NAME,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an AI Co-Partner helping John with coding, "
+                            "projects, and daily life. Be practical, step-by-step, "
+                            "and supportive."
+                        ),
+                    },
+                    {"role": "user", "content": message},
+                ],
+            }
+
+            response = requests.post(
+                settings.OPENAI_CHAT_COMPLETIONS_URL,
+                headers=headers,
+                json=payload,
+                timeout=30,
+            )
+
+            if not response.ok:
+                log.warning(
+                    "OpenAI HTTP error %s: %s",
+                    response.status_code,
+                    response.text[:200],
+                )
+                return self._call_offline(message, metadata)
+
+            data = response.json()
+            choices = data.get("choices") or []
+            if not choices:
+                log.warning("OpenAI returned no choices; falling back to offline.")
+                return self._call_offline(message, metadata)
+
+            msg = choices[0].get("message", {}) or {}
+            text = msg.get("content") or choices[0].get("text")
+
+            if not text:
+                log.warning("OpenAI choice has no text; falling back to offline.")
+                return self._call_offline(message, metadata)
+
+            return text.strip()
+
+        except Exception as e:
+            log.exception("OpenAI call failed; falling back to offline: %s", e)
+            return self._call_offline(message, metadata)
 
 
-# ----------------------------------------------------------------------
-# Simple standalone interactive test
-# ----------------------------------------------------------------------
 if __name__ == "__main__":
     from core.event_bus import EventBus
     from core.memory.memory_manager import MemoryManager
 
     bus = EventBus()
-    mem = MemoryManager()
-    engine = AIEngine(bus, mem)
+    memory = MemoryManager(bus)
+    engine = AIEngine(bus, memory, offline_only=True)
 
     print("=== AIEngine interactive test ===")
-    print("Type something and press Enter. Type 'quit' to exit.\n")
+    print("Type something and press Enter. Type 'quit' to exit.")
 
     while True:
         try:
