@@ -1,0 +1,7 @@
+This repository contains original work by John for the Master AI Co-Partner
+System. Portions of this project are protected by copyright and licensed
+under the Creative Commons BY-NC 4.0 license.
+
+Commercial use of this project is prohibited.
+
+Refer to the LICENSE and COPYRIGHT files for full legal terms.
