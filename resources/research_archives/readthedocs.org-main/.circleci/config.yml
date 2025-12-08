@@ -1,0 +1,78 @@
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@3.2.2
+  node: circleci/node@5.1.0
+
+jobs:
+  tests:
+    docker:
+      - image: 'cimg/python:3.12'
+        environment:
+          # Don't skip search tests.
+          TOX_POSARGS: ''
+          PYTEST_COVERAGE: --cov-report=xml --cov-config .coveragerc --cov=. --cov-append
+      - image: 'docker.elastic.co/elasticsearch/elasticsearch:8.19.7'
+        name: search
+        environment:
+          discovery.type: single-node
+          ES_JAVA_OPTS: -Xms750m -Xmx750m
+          ELASTIC_PASSWORD: password
+          # Disabled SSL for testing.
+          xpack.security.transport.ssl.enabled: 'false'
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run: sudo apt update
+      - run: sudo apt install -y rclone
+      - run: pip install --user tox
+      - run: tox -e py312
+      - codecov/upload
+
+  tests-embedapi:
+    docker:
+      - image: 'cimg/python:3.12'
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      - run: pip install --user 'tox<4'
+      - run: tox --version
+      - run: tox -c tox.embedapi.ini
+
+  checks:
+    docker:
+      - image: 'cimg/python:3.12'
+    steps:
+      - checkout
+      - run: git submodule sync
+      - run: git submodule update --init
+      # Recipe: https://pre-commit.com/#managing-ci-caches
+      - run:
+          name: Combine pre-commit config, python version and testing requirements for caching
+          command: |
+            cp common/pre-commit-config.yaml pre-commit-cache-key.txt
+            python --version --version >> pre-commit-cache-key.txt
+            cat requirements/testing.txt >> pre-commit-cache-key.txt
+      - restore_cache:
+          keys:
+          - pre-commit-cache-{{ checksum "pre-commit-cache-key.txt" }}
+      - run: pip install --user tox
+      - run: tox -e pre-commit
+      - run: tox -e migrations
+      - save_cache:
+          key: pre-commit-cache-{{ checksum "pre-commit-cache-key.txt" }}
+          paths:
+          - ~/.cache/pre-commit
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - checks
+      - tests
+      - tests-embedapi:
+          requires:
+            - checks
+            - tests

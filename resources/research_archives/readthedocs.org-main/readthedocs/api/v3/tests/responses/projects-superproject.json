@@ -1,0 +1,57 @@
+{
+    "created": "2019-04-29T10:00:00Z",
+    "default_branch": "master",
+    "default_version": "latest",
+    "id": 1,
+    "language": {
+        "code": "en",
+        "name": "English"
+    },
+    "_links": {
+        "_self": "https://readthedocs.org/api/v3/projects/project/",
+        "builds": "https://readthedocs.org/api/v3/projects/project/builds/",
+        "environmentvariables": "https://readthedocs.org/api/v3/projects/project/environmentvariables/",
+        "notifications": "https://readthedocs.org/api/v3/projects/project/notifications/",
+        "redirects": "https://readthedocs.org/api/v3/projects/project/redirects/",
+        "subprojects": "https://readthedocs.org/api/v3/projects/project/subprojects/",
+        "superproject": "https://readthedocs.org/api/v3/projects/project/superproject/",
+       "sync_versions": "https://readthedocs.org/api/v3/projects/project/sync-versions/",
+        "translations": "https://readthedocs.org/api/v3/projects/project/translations/",
+        "versions": "https://readthedocs.org/api/v3/projects/project/versions/"
+    },
+    "modified": "2019-04-29T12:00:00Z",
+    "name": "project",
+    "programming_language": {
+        "code": "words",
+        "name": "Only Words"
+    },
+    "homepage": "http://project.com",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/rtfd/project"
+    },
+    "slug": "project",
+    "subproject_of": null,
+    "tags": [
+        "project",
+        "tag",
+        "test"
+    ],
+    "translation_of": null,
+    "urls": {
+        "builds": "https://readthedocs.org/projects/project/builds/",
+        "documentation": "http://project.readthedocs.io/en/latest/",
+        "downloads": null,
+        "home": "https://readthedocs.org/projects/project/",
+        "versions": "https://readthedocs.org/projects/project/versions/"
+    },
+    "users": [
+        {
+            "username": "testuser"
+        }
+    ],
+    "privacy_level": "public",
+    "external_builds_privacy_level": "public",
+    "single_version": false,
+    "versioning_scheme": "multiple_versions_with_translations"
+}

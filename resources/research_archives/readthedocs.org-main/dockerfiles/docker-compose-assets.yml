@@ -1,0 +1,6 @@
+services:
+  assets:
+    image: node:8.16
+    volumes:
+      - ${PWD}:/usr/src/app/readthedocs.org
+    working_dir: /usr/src/app/readthedocs.org
