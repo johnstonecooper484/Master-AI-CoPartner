@@ -1,0 +1,8 @@
+{
+  "project_root": ".",
+  "resources_dir": "resources",
+  "pdf_dir": "resources/pdfs",
+  "open_source_dir": "resources/open_source_reference",
+  "research_dir": "resources/research_archives",
+  "github_url": "https://github.com/johnstonecooper484/Master-AI-CoPartner"
+}
