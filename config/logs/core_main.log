@@ -1,0 +1,4 @@
+2025-12-08 12:34:36 | INFO | core_main | === Master AI Co-Partner starting up ===
+2025-12-08 12:34:36 | INFO | core_main | [settings] role=main, offline_only=True, active_mode=offline_only, log_dir=C:\Dev\Master-AI-CoPartner\config\logs, log_level=INFO, voice_enabled=True, active_camera=logitech_1080p_webcam, use_kinect=False
+2025-12-08 12:34:36 | INFO | core_main | Running in MAIN role (primary interaction node).
+2025-12-08 12:34:36 | INFO | core_main | === Master AI Co-Partner shutdown ===

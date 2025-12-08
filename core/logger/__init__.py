@@ -1,61 +1,72 @@
-# core/logger/__init__.py
+"""
+core/logger/__init__.py
+
+Central logging helper for the AI Co-Partner system.
+
+Usage:
+    from core.logger import get_logger
+    log = get_logger("core_manager")
+    log.info("Something happened")
+"""
 
 from __future__ import annotations
 
 import logging
 from logging.handlers import RotatingFileHandler
-import os
+from pathlib import Path
 
-from config.paths import LOG_DIR
-
-# Cache of created loggers
-_loggers: dict[str, logging.Logger] = {}
+from config import settings
 
 
-def _build_logger(name: str) -> logging.Logger:
-    """Create a rotating file logger for the given name."""
+def _ensure_log_dir() -> Path:
+    """
+    Make sure the log directory exists and return it.
+    """
+    log_dir: Path = settings.LOG_DIR
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir
+
+
+def get_logger(name: str, log_to_console: bool = True) -> logging.Logger:
+    """
+    Return a configured logger for the given name.
+
+    - Writes to a rotating file in settings.LOG_DIR.
+    - Optional console output.
+    """
     logger = logging.getLogger(name)
 
-    # If we've already built this logger, just return it
     if logger.handlers:
+        # Already configured
         return logger
 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(settings.LOG_LEVEL)
 
-    # LOG_DIR is a string from config.paths, and paths.py already creates it
-    log_file = os.path.join(LOG_DIR, f"{name}.log")
+    log_dir = _ensure_log_dir()
+    log_file = log_dir / f"{name}.log"
 
-    handler = RotatingFileHandler(
-        log_file,
-        maxBytes=1_000_000,
-        backupCount=5,
+    # Rotating file handler
+    file_handler = RotatingFileHandler(
+        filename=log_file,
+        maxBytes=settings.LOG_MAX_BYTES,
+        backupCount=settings.LOG_BACKUP_COUNT,
         encoding="utf-8",
     )
 
     formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+        fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
-    # Also log to console
-    console = logging.StreamHandler()
-    console.setFormatter(formatter)
-    logger.addHandler(console)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    if log_to_console:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    # Prevent double logging to root logger
+    logger.propagate = False
 
     return logger
-
-
-class LoggerManager:
-    """Simple registry that hands out named loggers."""
-
-    @staticmethod
-    def get_logger(name: str) -> logging.Logger:
-        if name not in _loggers:
-            _loggers[name] = _build_logger(name)
-        return _loggers[name]
-
-
-def get_logger(name: str) -> logging.Logger:
-    """Convenience function so modules can do: from core.logger import get_logger."""
-    return LoggerManager.get_logger(name)
