@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from config.paths import MEMORY_DIR
-from core.logger.logger import get_logger
+from core.logger import get_logger   # ← only change is here
 
 log = get_logger("memory_manager")
 
