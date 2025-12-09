@@ -1,27 +1,38 @@
-# Ignore environment files
+# =========================
+# Environment & Secrets
+# =========================
 .env
 
-# Ignore Python cache
+# =========================
+# Python Cache / Build
+# =========================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Ignore virtual environments
+# =========================
+# Virtual Environments
+# =========================
 .venv/
 venv/
 
-# Ignore logs and memory files
+# =========================
+# Logs
+# =========================
 logs/
 config/logs/
 core/logs/
 *.log
+
+# =========================
+# Memory / Data Storage
+# =========================
 *.jsonl
-
-# Ignore Python cache
-__pycache__/
-core/__pycache__/
-config/__pycache__/
-
-# Ignore memory storage
 core/memory/storage/*.jsonl
+
+# =========================
+# OS Junk (just in case)
+# =========================
+.DS_Store
+Thumbs.db
