@@ -136,8 +136,13 @@ class AIEngine:
         local_endpoint = os.getenv("LOCAL_LLM_ENDPOINT")
         local_model_id = os.getenv("LOCAL_LLM_MODEL_ID", "google_gemma-3-4b-it")
 
+        # DEBUG: see what env vars we actually have at runtime
+        log.info("DEBUG LOCAL_LLM_ENDPOINT = %r", local_endpoint)
+        log.info("DEBUG LOCAL_LLM_MODEL_ID = %r", local_model_id)
+
         if local_endpoint:
             log.info("Attempting LOCAL LLM endpoint: %s", local_endpoint)
+            ...
 
             try:
                 payload = {
@@ -256,7 +261,7 @@ if __name__ == "__main__":
     from core.memory.memory_manager import MemoryManager
 
     bus = EventBus()
-    memory = MemoryManager(bus)
+    memory = MemoryManager()
     engine = AIEngine(bus, memory, offline_only=True)
 
     print("=== AIEngine interactive test ===")
