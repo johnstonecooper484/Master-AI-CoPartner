@@ -1,19 +1,23 @@
 """
 speech.py
-Audio recording + OpenAI STT for AI Co-Partner.
+Audio recording + OFFLINE STT (Whisper) for AI Co-Partner.
 """
 
 import os
 import sounddevice as sd
 import soundfile as sf
+import numpy as np  # for audio arrays
 
 from config.paths import TMP_DIR
 from core.logger import get_logger
 
+import whisper  # offline STT
+
 log = get_logger("speech")
 
-# Track whether we've already warned about STT being disabled
-_STT_DISABLED_LOGGED = False
+# Global cache for the loaded Whisper model
+_STT_MODEL = None
+
 
 # ========== AUDIO RECORDING TEST ==========
 
@@ -31,7 +35,7 @@ def record_test(duration: int = 3, samplerate: int = 44100):
             int(duration * samplerate),
             samplerate=samplerate,
             channels=1,
-            dtype='float32'
+            dtype="float32",
         )
 
         sd.wait()  # wait until recording finishes
@@ -45,39 +49,68 @@ def record_test(duration: int = 3, samplerate: int = 44100):
         print("Error while recording audio:", e)
 
 
-# ========== OPENAI SPEECH-TO-TEXT (STT) ==========
+# ========== OFFLINE SPEECH-TO-TEXT (STT) WITH WHISPER ==========
 
-from openai import OpenAI
-from dotenv import load_dotenv
+def _load_stt_model(model_name: str = "small"):
+    """
+    Lazily load the Whisper STT model once and cache it globally.
 
-load_dotenv()  # load key from .env
-client = OpenAI()
+    Common model_name options:
+        - "tiny"   (fastest, least accurate)
+        - "base"
+        - "small"  (good balance on CPU)
+        - "medium"
+        - "large"  (very heavy)
+    """
+    global _STT_MODEL
+
+    if _STT_MODEL is not None:
+        return _STT_MODEL
+
+    log.info(f"Loading Whisper STT model: {model_name!r} (this may take a moment)...")
+    _STT_MODEL = whisper.load_model(model_name)
+    log.info("Whisper STT model loaded and ready.")
+    return _STT_MODEL
+
 
 def transcribe_audio(audio_path: str) -> str:
     """
-    Offline placeholder for speech-to-text.
+    OFFLINE STT using local Whisper model.
 
-    Important:
-        - This function does NOT call any cloud APIs.
-        - It exists so the rest of the voice pipeline can run
-          (recording, F12 toggle, etc.) without errors.
-        - Later, we will replace the body with an OFFLINE STT engine
-          (e.g., local Whisper) so your AI can understand speech
-          without touching the internet.
+    - Takes a path to a WAV file
+    - Loads the audio with soundfile (no ffmpeg)
+    - Runs Whisper locally (no internet, no API key)
+    - Returns the transcribed text as a string
     """
-    global _STT_DISABLED_LOGGED
+    try:
+        if not os.path.exists(audio_path):
+            log.error(f"transcribe_audio: file not found: {audio_path}")
+            return ""
 
-    # Log once per run so you know what's happening, but don't spam.
-    if not _STT_DISABLED_LOGGED:
-        log.info(
-            "transcribe_audio called, but STT is currently offline-only. "
-            "No cloud requests will be made until an offline STT engine is configured."
-        )
-        _STT_DISABLED_LOGGED = True
+        # Load audio directly in Python to avoid ffmpeg
+        data, samplerate = sf.read(audio_path, dtype="float32")
 
-    # For now, we return an empty string to indicate "no transcription".
-    return ""
+        # If stereo, convert to mono by averaging channels
+        if data.ndim > 1:
+            data = data.mean(axis=1)
 
+        model = _load_stt_model("small")  # adjust model size here if needed
+
+        log.info(f"Running offline STT on: {audio_path}")
+        # Pass the raw audio array instead of file path, and force fp16=False on CPU
+        result = model.transcribe(data, language="en", fp16=False)
+
+        text = (result.get("text") or "").strip()
+        if not text:
+            log.info("Whisper STT returned empty text.")
+            return ""
+
+        log.info(f"Whisper STT transcription: {text!r}")
+        return text
+
+    except Exception as exc:
+        log.exception(f"Offline STT transcription failed: {exc}")
+        return ""
 
 
 
@@ -87,7 +120,7 @@ if __name__ == "__main__":
     print("Recording 3-second test audio...")
     record_test()
 
-    print("Transcribing...")
+    print("Transcribing (offline Whisper)...")
     text = transcribe_audio(os.path.join(TMP_DIR, "input.wav"))
     print("Transcription:", text)
 
