@@ -4,7 +4,7 @@ Central orchestrator for the AI Co-Partner system.
 Initializes all core modules and connects them to the event bus.
 """
 
-from core.logger.logger import get_logger
+from core.logger import get_logger
 from core.event_bus import EventBus
 from core.ai_engine import AIEngine
 from core.memory.memory_manager import MemoryManager

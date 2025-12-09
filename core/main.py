@@ -1,19 +1,12 @@
+from __future__ import annotations
+
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(), override=False)
+
 """main.py
 
 Top-level entrypoint for the Master AI Co-Partner.
-
-Right now this:
-- Sets up EventBus, MemoryManager, and AIEngine
-- Prints current mode (offline / online)
-- Starts a simple CLI loop so John can talk to the system
-
-Later this will be replaced / extended with:
-- Hotkey handler
-- Voice I/O
-- Multi-machine coordination
 """
-
-from __future__ import annotations
 
 from typing import Optional
 
@@ -37,8 +30,8 @@ def build_engine(offline_only: Optional[bool] = None) -> AIEngine:
 def print_startup_banner(engine: AIEngine) -> None:
     mode = "OFFLINE" if engine.offline_only else "ONLINE-capable"
     print("=== Master AI Co-Partner ===")
-    print(f"Active mode: {mode}")
-    print(f"Settings ACTIVE_MODE: {settings.ACTIVE_MODE}")
+    print(f"Active mode: {settings.ACTIVE_MODE}")
+    print(f"Mode: {mode}")
     print("Type something and press Enter. Type 'quit' to exit.\n")
 
 
@@ -66,7 +59,6 @@ def main() -> None:
     """Main entrypoint used by `python -m core.main`."""
     log.info("Starting Master AI Co-Partner core.main")
 
-    # For now, we trust settings / engine defaults to decide offline vs online.
     engine = build_engine()
 
     print_startup_banner(engine)

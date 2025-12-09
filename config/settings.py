@@ -1,5 +1,4 @@
-"""
-config/settings.py
+"""config/settings.py
 
 Global configuration and feature flags for the AI Co-Partner system.
 """
@@ -16,8 +15,8 @@ from pathlib import Path
 # Project root is two levels up: .../Master-AI-CoPartner/
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 
-# Central logs directory. Actual log files will be created by the logger module.
-LOG_DIR: Path = PROJECT_ROOT / "config" / "logs"
+# Central logs directory (used by logger module)
+LOG_DIR: Path = PROJECT_ROOT / "logs"
 
 # ---------------------------------------------------------
 # Machine role
@@ -49,6 +48,26 @@ MODE_OFFLINE_WITH_ONLINE_BACKUP: str = "offline_with_online_backup"
 
 ACTIVE_MODE: str = MODE_OFFLINE_ONLY if OFFLINE_ONLY else MODE_OFFLINE_WITH_ONLINE_BACKUP
 
+# When can we use online models?
+# We only allow online if:
+#   - AICOP_ONLINE_ENABLED = "1"
+#   - AND OPENAI_API_KEY is set
+ONLINE_FEATURES_ENABLED: bool = (
+    os.getenv("AICOP_ONLINE_ENABLED", "0") == "1"
+    and bool(os.getenv("OPENAI_API_KEY"))
+)
+
+# ---------------------------------------------------------
+# OpenAI / online model config (used only when online is allowed)
+# ---------------------------------------------------------
+
+OPENAI_MODEL_NAME: str = os.getenv("AICOP_OPENAI_MODEL", "gpt-4o-mini")
+
+OPENAI_CHAT_COMPLETIONS_URL: str = os.getenv(
+    "AICOP_OPENAI_URL",
+    "https://api.openai.com/v1/chat/completions",
+)
+
 # ---------------------------------------------------------
 # Logging configuration
 # ---------------------------------------------------------
@@ -60,8 +79,10 @@ LOG_BACKUP_COUNT: int = int(os.getenv("AICOP_LOG_BACKUP_COUNT", "5"))
 # ---------------------------------------------------------
 # Voice / audio flags
 # ---------------------------------------------------------
+# These will matter when we hook up offline STT/TTS.
+# For now they are simple switches we can read elsewhere.
 
-VOICE_ENABLED: bool = os.getenv("AICOP_VOICE_ENABLED", "1") == "1"
+VOICE_ENABLED: bool = os.getenv("AICOP_VOICE_ENABLED", "0") == "1"
 STT_ENGINE: str = os.getenv("AICOP_STT_ENGINE", "offline")   # "offline" or "online"
 TTS_ENGINE: str = os.getenv("AICOP_TTS_ENGINE", "offline")   # "offline" or "online"
 
@@ -87,6 +108,7 @@ def debug_dump() -> str:
         f"log_dir={LOG_DIR}, "
         f"log_level={LOG_LEVEL}, "
         f"voice_enabled={VOICE_ENABLED}, "
-        f"active_camera={ACTIVE_CAMERA_DEVICE}, "
-        f"use_kinect={USE_KINECT}"
+        f"stt_engine={STT_ENGINE}, "
+        f"tts_engine={TTS_ENGINE}, "
+        f"online_enabled={ONLINE_FEATURES_ENABLED}"
     )

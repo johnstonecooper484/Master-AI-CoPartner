@@ -5,7 +5,7 @@ Allows different modules to subscribe and publish events without hard dependenci
 """
 
 from typing import Callable, Dict, List, Any
-from core.logger.logger import get_logger
+from core.logger import get_logger
 
 log = get_logger("event_bus")
 

@@ -1,20 +1,40 @@
-"""ai_engine.py - clean rewritten version"""
+"""ai_engine.py - AI core engine for Master AI Co-Partner."""
 
 from __future__ import annotations
 
 from typing import Optional, Dict, Any
 import os
+from pathlib import Path
 
-from dotenv import load_dotenv
+import requests
 
 from config import settings
 from core.logger import get_logger
 from core.event_bus import EventBus
 from core.memory.memory_manager import MemoryManager
 
-load_dotenv()
-
 log = get_logger("ai_engine")
+
+
+def _load_project_env() -> None:
+    """
+    Ensure the .env in the project root is loaded.
+
+    This ignores any random .env files in subfolders and always targets:
+    <project_root>/.env
+    """
+    try:
+        from dotenv import load_dotenv
+
+        project_root = Path(__file__).resolve().parents[1]  # .../Master-AI-CoPartner/
+        env_path = project_root / ".env"
+        if env_path.exists():
+            load_dotenv(env_path, override=False)
+            log.info("Loaded .env from %s", env_path)
+        else:
+            log.warning(".env not found at %s", env_path)
+    except Exception as e:
+        log.error("Failed to load project .env: %s", e)
 
 
 class AIEngine:
@@ -35,6 +55,10 @@ class AIEngine:
             bool(memory),
             self.offline_only,
         )
+
+    # ---------------------------------------------------------
+    # Priority / memory handling
+    # ---------------------------------------------------------
 
     def _infer_priority(self, message: str, metadata: Dict[str, Any]) -> str:
         text = message.lower()
@@ -68,6 +92,10 @@ class AIEngine:
 
         return "normal"
 
+    # ---------------------------------------------------------
+    # Main entry
+    # ---------------------------------------------------------
+
     def process(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         if metadata is None:
             metadata = {}
@@ -78,6 +106,7 @@ class AIEngine:
         priority = self._infer_priority(message, metadata)
         log.info("Inferred memory priority=%r", priority)
 
+        # Store to memory
         if self.memory:
             try:
                 self.memory.store_message(
@@ -89,6 +118,7 @@ class AIEngine:
             except Exception as e:
                 log.exception("Failed to store message in memory: %s", e)
 
+        # Publish "received" event
         try:
             self.bus.publish(
                 "ai.message_received",
@@ -101,7 +131,9 @@ class AIEngine:
         except Exception as e:
             log.exception("Failed to publish message_received event: %s", e)
 
-        if self.offline_only or not settings.ONLINE_FEATURES_ENABLED:
+        # Decide offline vs online
+        online_enabled = getattr(settings, "ONLINE_FEATURES_ENABLED", False)
+        if self.offline_only or not online_enabled:
             log.info("Using OFFLINE response path.")
             reply = self._call_offline(message, metadata)
         else:
@@ -113,6 +145,7 @@ class AIEngine:
                 )
                 reply = self._call_offline(message, metadata)
 
+        # Publish "replied" event
         try:
             self.bus.publish(
                 "ai.message_replied",
@@ -128,10 +161,15 @@ class AIEngine:
 
         return reply
 
+    # ---------------------------------------------------------
+    # OFFLINE / LOCAL LLM PATH
+    # ---------------------------------------------------------
+
     def _call_offline(self, message: str, metadata: Dict[str, Any]) -> str:
         """Offline mode with optional local model support (LM Studio)."""
 
-        import requests
+        # Make sure env is loaded from project root
+        _load_project_env()
 
         local_endpoint = os.getenv("LOCAL_LLM_ENDPOINT")
         local_model_id = os.getenv("LOCAL_LLM_MODEL_ID", "google_gemma-3-4b-it")
@@ -142,7 +180,6 @@ class AIEngine:
 
         if local_endpoint:
             log.info("Attempting LOCAL LLM endpoint: %s", local_endpoint)
-            ...
 
             try:
                 payload = {
@@ -175,10 +212,15 @@ class AIEngine:
                         "Local LLM returned no usable text; falling back to stub."
                     )
                 else:
-                    log.warning("Local LLM HTTP error: %s", response.status_code)
+                    log.warning(
+                        "Local LLM HTTP error %s: %s",
+                        response.status_code,
+                        response.text[:200],
+                    )
             except Exception as e:
                 log.error("Local LLM call failed: %s", e)
 
+        # Stub fallback if no endpoint or failure
         log.info("Using OFFLINE stub response path.")
         trimmed = message.strip()
 
@@ -191,13 +233,15 @@ class AIEngine:
             "When you give me a real local model endpoint, I'll start thinking much deeper."
         )
 
+    # ---------------------------------------------------------
+    # ONLINE / OPENAI PATH
+    # ---------------------------------------------------------
+
     def _call_online(self, message: str, metadata: Dict[str, Any]) -> str:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             log.warning("OPENAI_API_KEY not set; falling back to offline stub.")
             return self._call_offline(message, metadata)
-
-        import requests
 
         log.info("Calling OpenAI online API path.")
         try:
@@ -206,8 +250,16 @@ class AIEngine:
                 "Content-Type": "application/json",
             }
 
+            # These should come from config.settings
+            model_name = getattr(settings, "OPENAI_MODEL_NAME", "gpt-4o-mini")
+            url = getattr(
+                settings,
+                "OPENAI_CHAT_COMPLETIONS_URL",
+                "https://api.openai.com/v1/chat/completions",
+            )
+
             payload = {
-                "model": settings.OPENAI_MODEL_NAME,
+                "model": model_name,
                 "messages": [
                     {
                         "role": "system",
@@ -221,12 +273,7 @@ class AIEngine:
                 ],
             }
 
-            response = requests.post(
-                settings.OPENAI_CHAT_COMPLETIONS_URL,
-                headers=headers,
-                json=payload,
-                timeout=30,
-            )
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
 
             if not response.ok:
                 log.warning(
@@ -257,9 +304,7 @@ class AIEngine:
 
 
 if __name__ == "__main__":
-    from core.event_bus import EventBus
-    from core.memory.memory_manager import MemoryManager
-
+    # Simple standalone test
     bus = EventBus()
     memory = MemoryManager()
     engine = AIEngine(bus, memory, offline_only=True)
