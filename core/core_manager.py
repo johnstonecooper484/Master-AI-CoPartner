@@ -21,7 +21,11 @@ class CoreManager:
         self.event_bus = EventBus()
         self.memory = MemoryManager()
         self.ai = AIEngine(self.event_bus, self.memory)
-        self.command_handler = CommandHandler()  # NEW
+        self.command_handler = CommandHandler()
+
+        # subscribe to AI events for logging
+        self.event_bus.subscribe("ai.message_received", self._on_ai_message_received)
+        self.event_bus.subscribe("ai.message_replied", self._on_ai_message_replied)
 
         log.info("CoreManager initialized successfully.")
 
@@ -29,6 +33,12 @@ class CoreManager:
         """Send text to the AI engine for processing."""
         log.info(f"CoreManager received input: {text}")
         return self.ai.process(text, {"source": "core_manager"})
+
+    def _on_ai_message_received(self, data):
+        log.info(f"[EVENT] AI received message: {data}")
+
+    def _on_ai_message_replied(self, data):
+        log.info(f"[EVENT] AI replied with: {data}")
 
     def run_text_loop(self) -> None:
         """Simple console loop: commands with /, chat goes to AI."""
