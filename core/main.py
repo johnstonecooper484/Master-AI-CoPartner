@@ -76,10 +76,44 @@ def main() -> None:
     # Start the voice listener that reacts to F12 listen_toggle events
     start_voice_listener(bus)
 
+    # Route transcribed voice text into the AI engine
+    def handle_voice_transcribed(data):
+        # data is expected to be a dict like {"text": "..."}
+        payload = data or {}
+        text = payload.get("text", "")
+
+        if not isinstance(text, str):
+            log.warning(f"voice.transcribed received non-string text: {type(text)}")
+            return
+
+        text = text.strip()
+        if not text:
+            log.info("voice.transcribed event received with empty text; ignoring.")
+            return
+
+        log.info(f"Voice input text: {text!r}")
+
+        try:
+            # Process this like a normal user message, but mark it as voice input
+            reply = engine.process(text, {"source": "voice_input"})
+        except Exception as exc:
+            log.exception(f"Error processing voice input: {exc}")
+            return
+
+        # Optional console echo of the reply
+        try:
+            print(f"\nAI (voice): {reply}\n")
+        except Exception as exc:
+            log.exception(f"Error printing AI voice reply: {exc}")
+
+    # Subscribe the handler to the EventBus
+    bus.subscribe("voice.transcribed", handle_voice_transcribed)
+
     print_startup_banner(engine)
     interactive_loop(engine)
 
     log.info("Shutting down Master AI Co-Partner core.main")
+
 
 
 

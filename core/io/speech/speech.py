@@ -12,6 +12,9 @@ from core.logger import get_logger
 
 log = get_logger("speech")
 
+# Track whether we've already warned about STT being disabled
+_STT_DISABLED_LOGGED = False
+
 # ========== AUDIO RECORDING TEST ==========
 
 def record_test(duration: int = 3, samplerate: int = 44100):
@@ -52,39 +55,29 @@ client = OpenAI()
 
 def transcribe_audio(audio_path: str) -> str:
     """
-    Sends recorded audio to OpenAI's STT model and returns the text.
+    Offline placeholder for speech-to-text.
 
-    NOTE:
-        Right now the cloud STT quota is exhausted, so if we detect
-        an 'insufficient_quota' error we will log it once and then
-        stop trying further calls.
+    Important:
+        - This function does NOT call any cloud APIs.
+        - It exists so the rest of the voice pipeline can run
+          (recording, F12 toggle, etc.) without errors.
+        - Later, we will replace the body with an OFFLINE STT engine
+          (e.g., local Whisper) so your AI can understand speech
+          without touching the internet.
     """
-    # Simple global switch to avoid spamming a dead endpoint
-    if os.getenv("DISABLE_CLOUD_STT", "").lower() == "true":
-        log.warning("Cloud STT is disabled by DISABLE_CLOUD_STT flag.")
-        return ""
+    global _STT_DISABLED_LOGGED
 
-    try:
-        with open(audio_path, "rb") as f:
-            response = client.audio.transcriptions.create(
-                model=os.getenv("OPENAI_TRANSCRIBE_MODEL"),
-                file=f,
-            )
-        text = response.text
-        log.info(f"Transcribed audio: {text!r}")
-        return text
+    # Log once per run so you know what's happening, but don't spam.
+    if not _STT_DISABLED_LOGGED:
+        log.info(
+            "transcribe_audio called, but STT is currently offline-only. "
+            "No cloud requests will be made until an offline STT engine is configured."
+        )
+        _STT_DISABLED_LOGGED = True
 
-    except Exception as e:
-        err_str = str(e)
-        log.error(f"STT transcription failed: {err_str}")
-        print("Transcription error:", err_str)
+    # For now, we return an empty string to indicate "no transcription".
+    return ""
 
-        # If it's clearly a quota issue, set a flag so we don't keep calling
-        if "insufficient_quota" in err_str or "429" in err_str:
-            log.warning("Disabling cloud STT due to insufficient quota.")
-            # You can set this in your .env to permanently disable:
-            # DISABLE_CLOUD_STT=true
-        return ""
 
 
 
