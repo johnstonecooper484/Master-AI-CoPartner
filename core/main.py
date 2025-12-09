@@ -15,14 +15,18 @@ from core.logger import get_logger
 from core.event_bus import EventBus
 from core.memory.memory_manager import MemoryManager
 from core.ai_engine import AIEngine
-from core.hotkeys import start_hotkeys  # 🔹 add this line
+from core.hotkeys import start_hotkeys
+from core.io.speech.listener import start_voice_listener
 
 log = get_logger("core_main")
 
 
-def build_engine(offline_only: Optional[bool] = None) -> AIEngine:
+def build_engine(
+    offline_only: Optional[bool] = None,
+    event_bus: Optional[EventBus] = None,
+) -> AIEngine:
     """Factory to build the AIEngine with standard wiring."""
-    bus = EventBus()
+    bus = event_bus or EventBus()
     memory = MemoryManager()
     engine = AIEngine(event_bus=bus, memory=memory, offline_only=offline_only)
     return engine
@@ -60,17 +64,23 @@ def main() -> None:
     """Main entrypoint used by `python -m core.main`."""
     log.info("Starting Master AI Co-Partner core.main")
 
-    # Build the engine (includes EventBus + MemoryManager wiring internally)
-    engine = build_engine()
+    # Create a shared EventBus so engine, hotkeys, and voice listener see the same events
+    bus = EventBus()
 
-    # Start global hotkeys (F12 toggle) in the background
-    # Right now this just logs ON/OFF and is ready to be wired into voice later.
-    start_hotkeys()
+    # Build the engine using that shared bus
+    engine = build_engine(event_bus=bus)
+
+    # Start global hotkeys (F12 toggle) using the same bus
+    start_hotkeys(event_bus=bus)
+
+    # Start the voice listener that reacts to F12 listen_toggle events
+    start_voice_listener(bus)
 
     print_startup_banner(engine)
     interactive_loop(engine)
 
     log.info("Shutting down Master AI Co-Partner core.main")
+
 
 
 

@@ -52,23 +52,40 @@ client = OpenAI()
 
 def transcribe_audio(audio_path: str) -> str:
     """
-    Sends recorded audio to OpenAI's STT model (gpt-4o-mini-transcribe)
-    and returns the text.
+    Sends recorded audio to OpenAI's STT model and returns the text.
+
+    NOTE:
+        Right now the cloud STT quota is exhausted, so if we detect
+        an 'insufficient_quota' error we will log it once and then
+        stop trying further calls.
     """
+    # Simple global switch to avoid spamming a dead endpoint
+    if os.getenv("DISABLE_CLOUD_STT", "").lower() == "true":
+        log.warning("Cloud STT is disabled by DISABLE_CLOUD_STT flag.")
+        return ""
+
     try:
         with open(audio_path, "rb") as f:
             response = client.audio.transcriptions.create(
                 model=os.getenv("OPENAI_TRANSCRIBE_MODEL"),
-                file=f
+                file=f,
             )
         text = response.text
         log.info(f"Transcribed audio: {text!r}")
         return text
 
     except Exception as e:
-        log.error(f"STT transcription failed: {e}")
-        print("Transcription error:", e)
+        err_str = str(e)
+        log.error(f"STT transcription failed: {err_str}")
+        print("Transcription error:", err_str)
+
+        # If it's clearly a quota issue, set a flag so we don't keep calling
+        if "insufficient_quota" in err_str or "429" in err_str:
+            log.warning("Disabling cloud STT due to insufficient quota.")
+            # You can set this in your .env to permanently disable:
+            # DISABLE_CLOUD_STT=true
         return ""
+
 
 
 # ========== SELF-TEST WHEN RUN DIRECTLY ==========
