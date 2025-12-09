@@ -21,7 +21,7 @@ _STT_MODEL = None
 
 # ========== AUDIO RECORDING TEST ==========
 
-def record_test(duration: int = 3, samplerate: int = 44100):
+def record_test(duration: int = 12, samplerate: int = 44100):
     """Record a short audio clip and save it to tmp/input.wav."""
     log.info(f"Recording audio for {duration} seconds...")
 
@@ -79,6 +79,7 @@ def transcribe_audio(audio_path: str) -> str:
 
     - Takes a path to a WAV file
     - Loads the audio with soundfile (no ffmpeg)
+    - Normalizes the volume
     - Runs Whisper locally (no internet, no API key)
     - Returns the transcribed text as a string
     """
@@ -93,6 +94,15 @@ def transcribe_audio(audio_path: str) -> str:
         # If stereo, convert to mono by averaging channels
         if data.ndim > 1:
             data = data.mean(axis=1)
+
+        # 🔊 Normalize volume so Whisper sees a strong signal
+        if data.size:
+            max_val = float(np.max(np.abs(data)))
+        else:
+            max_val = 0.0
+
+        if max_val > 0:
+            data = data / max_val
 
         model = _load_stt_model("small")  # adjust model size here if needed
 
@@ -113,12 +123,11 @@ def transcribe_audio(audio_path: str) -> str:
         return ""
 
 
-
 # ========== SELF-TEST WHEN RUN DIRECTLY ==========
 
 if __name__ == "__main__":
-    print("Recording 3-second test audio...")
-    record_test()
+    print("Recording 12-second test audio...")
+    record_test(duration=12)
 
     print("Transcribing (offline Whisper)...")
     text = transcribe_audio(os.path.join(TMP_DIR, "input.wav"))

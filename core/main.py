@@ -10,6 +10,7 @@ Top-level entrypoint for the Master AI Co-Partner.
 
 from typing import Optional
 
+from core.io.speech.tts_local import LocalTTS
 from config import settings
 from core.logger import get_logger
 from core.event_bus import EventBus
@@ -70,6 +71,9 @@ def main() -> None:
     # Build the engine using that shared bus
     engine = build_engine(event_bus=bus)
 
+    # Add local TTS for voice replies
+    tts = LocalTTS()
+
     # Start global hotkeys (F12 toggle) using the same bus
     start_hotkeys(event_bus=bus)
 
@@ -87,8 +91,16 @@ def main() -> None:
             return
 
         text = text.strip()
+
+        # NEW: if empty text, still give spoken feedback
         if not text:
-            log.info("voice.transcribed event received with empty text; ignoring.")
+            log.info("voice.transcribed event received with empty text.")
+            fallback = "I heard something, but I could not understand the words. Please say it again."
+            try:
+                print(f"\nAI (voice): {fallback}\n")
+                tts.speak(fallback)
+            except Exception as exc:
+                log.exception(f"Error speaking fallback for empty STT text: {exc}")
             return
 
         log.info(f"Voice input text: {text!r}")
@@ -100,11 +112,12 @@ def main() -> None:
             log.exception(f"Error processing voice input: {exc}")
             return
 
-        # Optional console echo of the reply
+        # Console echo + spoken reply
         try:
             print(f"\nAI (voice): {reply}\n")
+            tts.speak(reply)
         except Exception as exc:
-            log.exception(f"Error printing AI voice reply: {exc}")
+            log.exception(f"Error printing or speaking AI voice reply: {exc}")
 
     # Subscribe the handler to the EventBus
     bus.subscribe("voice.transcribed", handle_voice_transcribed)
@@ -113,9 +126,6 @@ def main() -> None:
     interactive_loop(engine)
 
     log.info("Shutting down Master AI Co-Partner core.main")
-
-
-
 
 
 if __name__ == "__main__":

@@ -1,15 +1,17 @@
 # core/io/speech/listener.py
 """
-Continuous microphone listener controlled by EventBus events.
+Single-chunk microphone listener controlled by EventBus events.
 
 Listens for:
     "voice.listen_toggle"  -> {"listening": True/False}
 
-When ON:
-    - Records a short 2-second audio chunk (for now)
+On listening=True:
+    - Records one 5-second audio chunk
     - Saves it to tmp/input.wav
-    - Transcribes it
-    - Publishes: "voice.transcribed" event with {"text": "..."}
+    - Transcribes it with offline STT
+    - Publishes: "voice.transcribed" with {"text": "...", "raw_path": ...}
+
+Each F12 press = one listen + one reply.
 """
 
 import os
@@ -21,7 +23,7 @@ import soundfile as sf
 from config.paths import TMP_DIR
 from core.logger import get_logger
 from core.event_bus import EventBus
-from core.io.speech import speech  # imports your record + transcribe utilities
+from core.io.speech import speech  # STT utilities
 
 log = get_logger("voice_listener")
 
@@ -40,71 +42,64 @@ class VoiceListener:
     def _handle_toggle(self, data):
         """Called whenever F12 toggles listening state."""
         new_state = data.get("listening", False)
-        log.info(f"VoiceListener toggle received: {new_state}")
+        state_txt = "ON" if new_state else "OFF"
+        log.info(f"VoiceListener toggle received: {state_txt}")
 
-        if new_state and not self._listening:
+        # We only care about ON to trigger a single listen
+        if new_state:
             self.start_listening()
-        elif not new_state and self._listening:
-            self.stop_listening()
 
     def start_listening(self):
         if self._listening:
+            log.info("VoiceListener: already listening, ignoring new request.")
             return
 
-        log.info("VoiceListener: starting mic loop")
+        log.info("VoiceListener: starting single mic capture")
         self._listening = True
         self._stop_flag.clear()
 
-        self._thread = threading.Thread(
-            target=self._listen_loop, daemon=True
-        )
+        self._thread = threading.Thread(target=self._listen_once, daemon=True)
         self._thread.start()
 
-    def stop_listening(self):
-        if not self._listening:
-            return
+    def _listen_once(self):
+        """Record exactly one chunk, transcribe, publish, then stop."""
+        try:
+            duration = 12  # seconds per chunk (longer so it can catch full phrase)
+            samplerate = 44100
 
-        log.info("VoiceListener: stopping mic loop")
-        self._listening = False
-        self._stop_flag.set()
+            os.makedirs(TMP_DIR, exist_ok=True)
+            output_path = os.path.join(TMP_DIR, "input.wav")
 
-    def _listen_loop(self):
-        """Records repeatedly until stopped."""
-        while not self._stop_flag.is_set():
-            try:
-                duration = 2  # seconds per chunk for now
-                samplerate = 44100
+            # Record
+            log.info(f"Recording mic chunk for {duration} seconds...")
+            audio = sd.rec(
+                int(duration * samplerate),
+                samplerate=samplerate,
+                channels=1,
+                dtype="float32",
+            )
+            sd.wait()
 
-                os.makedirs(TMP_DIR, exist_ok=True)
-                output_path = os.path.join(TMP_DIR, "input.wav")
+            sf.write(output_path, audio, samplerate)
+            log.info(f"Saved chunk to: {output_path}")
 
-                log.info("Recording mic chunk...")
-                audio = sd.rec(
-                    int(duration * samplerate),
-                    samplerate=samplerate,
-                    channels=1,
-                    dtype="float32",
-                )
-                sd.wait()
+            # Transcribe
+            text = speech.transcribe_audio(output_path)
+            log.info(f"Raw STT result: {text!r}")
 
-                sf.write(output_path, audio, samplerate)
-                log.info(f"Saved chunk to: {output_path}")
+            payload = {"text": text or "", "raw_path": output_path}
+            self.event_bus.publish("voice.transcribed", payload)
+            log.info("Published voice.transcribed event")
 
-                # STT
-                text = speech.transcribe_audio(output_path)
-                if text:
-                    log.info(f"Transcribed: {text!r}")
-                    self.event_bus.publish("voice.transcribed", {"text": text})
-
-            except Exception as exc:
-                log.exception(f"VoiceListener mic loop error: {exc}")
-
-            time.sleep(0.2)  # tiny pause
-
-        log.info("VoiceListener mic loop exited")
+        except Exception as exc:
+            log.exception(f"VoiceListener single capture error: {exc}")
+        finally:
+            # Mark listener as idle so a new F12 can trigger again
+            self._listening = False
+            self._stop_flag.set()
+            log.info("VoiceListener single capture finished; ready for next F12.")
 
 
 def start_voice_listener(event_bus: EventBus):
     """Called from core.main to activate listener."""
-    listener = VoiceListener(event_bus)
-    return listener
+    return VoiceListener(event_bus)
