@@ -1,7 +1,7 @@
 """
 core_manager.py
 Central orchestrator for the AI Co-Partner system.
-Initializes all core modules and connects them to the event bus.
+Now includes live voice output via LocalTTS.
 """
 
 from core.logger import get_logger
@@ -9,6 +9,7 @@ from core.event_bus import EventBus
 from core.ai_engine import AIEngine
 from core.memory.memory_manager import MemoryManager
 from core.command_handler import CommandHandler
+from core.io.speech.tts_local import LocalTTS  # ✅ VOICE
 
 log = get_logger("core_manager")
 
@@ -22,6 +23,7 @@ class CoreManager:
         self.memory = MemoryManager()
         self.ai = AIEngine(self.event_bus, self.memory)
         self.command_handler = CommandHandler()
+        self.tts = LocalTTS()  # ✅ activate voice engine
 
         # subscribe to AI events for logging
         self.event_bus.subscribe("ai.message_received", self._on_ai_message_received)
@@ -41,10 +43,9 @@ class CoreManager:
         log.info(f"[EVENT] AI replied with: {data}")
 
     def run_text_loop(self) -> None:
-        """Simple console loop: commands with /, chat goes to AI."""
+        """Console loop: commands + AI + LIVE VOICE."""
         log.info("CoreManager text loop starting.")
         print("AI Co-Partner online. Type your message, or /quit to exit.")
-        print("Use /ping or /help for basic commands (with or without /).")
 
         while True:
             try:
@@ -60,10 +61,11 @@ class CoreManager:
             lowered = user_input.lower()
             if lowered in ("/quit", "/exit", "/q"):
                 print("AI: Goodbye for now.")
+                self.tts.speak("Goodbye for now.")
                 log.info("Exit command received, stopping loop.")
                 break
 
-            # If it starts with /, treat as a command
+            # Commands
             if user_input.startswith("/"):
                 cmd_text = user_input.lstrip("/")
                 result = self.command_handler.handle_command(
@@ -72,11 +74,15 @@ class CoreManager:
                     session_id=None,
                 )
                 print(f"[Command] {result['status']}: {result['message']}")
+                self.tts.speak(result["message"])
                 continue
 
-            # Otherwise pass it to the AI engine
+            # Normal AI chat
             reply = self.handle_input(user_input)
             print(f"AI: {reply}")
+
+            # ✅ SPEAKS THE REAL AI RESPONSE
+            self.tts.speak(reply)
 
         log.info("CoreManager text loop ended.")
 

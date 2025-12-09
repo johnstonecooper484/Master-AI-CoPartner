@@ -8,7 +8,7 @@ import sounddevice as sd
 import soundfile as sf
 
 from config.paths import TMP_DIR
-from core.logger.logger import get_logger
+from core.logger import get_logger
 
 log = get_logger("speech")
 
