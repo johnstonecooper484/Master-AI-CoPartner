@@ -94,6 +94,37 @@ ACTIVE_CAMERA_DEVICE: str = "logitech_1080p_webcam"
 USE_KINECT: bool = False  # future upgrade only
 
 # ---------------------------------------------------------
+# Vision / screen "eyes" flags (separate from voice)
+# ---------------------------------------------------------
+# These are SAFE defaults (OFF) and only matter if/when a module reads them.
+# The goal: you can have:
+# - voice on, vision off
+# - vision on (watch), voice off
+# - both on
+
+VISION_ENABLED: bool = os.getenv("AICOP_VISION_ENABLED", "0") == "1"
+
+# If VISION_ENABLED is on, should it start in watch mode by default?
+VISION_WATCH_DEFAULT: bool = os.getenv("AICOP_VISION_WATCH_DEFAULT", "0") == "1"
+
+# Default detail level for snapshots ("light" or "heavy")
+VISION_DETAIL_DEFAULT: str = os.getenv("AICOP_VISION_DETAIL_DEFAULT", "light").lower()
+
+# Save debug images when capturing (useful during dev; keep OFF for streaming safety)
+VISION_SAVE_DEBUG_IMAGES: bool = os.getenv("AICOP_VISION_SAVE_DEBUG_IMAGES", "0") == "1"
+
+# Optional region capture (e.g., chat box). Format: "x,y,w,h" (empty = full screen/monitor)
+VISION_REGION: str = os.getenv("AICOP_VISION_REGION", "").strip()
+
+# ---------------------------------------------------------
+# UI / permissions (prep for Twitch auto-reply safety switch)
+# ---------------------------------------------------------
+# UI_AUTOREPLY_DEFAULT:
+#   0 -> start OFF (safe)
+#   1 -> start ON (only if you explicitly choose)
+UI_AUTOREPLY_DEFAULT: bool = os.getenv("AICOP_UI_AUTOREPLY_DEFAULT", "0") == "1"
+
+# ---------------------------------------------------------
 # Utility
 # ---------------------------------------------------------
 
@@ -110,5 +141,8 @@ def debug_dump() -> str:
         f"voice_enabled={VOICE_ENABLED}, "
         f"stt_engine={STT_ENGINE}, "
         f"tts_engine={TTS_ENGINE}, "
+        f"vision_enabled={VISION_ENABLED}, "
+        f"vision_watch_default={VISION_WATCH_DEFAULT}, "
+        f"vision_detail_default={VISION_DETAIL_DEFAULT}, "
         f"online_enabled={ONLINE_FEATURES_ENABLED}"
     )
