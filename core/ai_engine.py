@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 import os
 from pathlib import Path
 
@@ -37,6 +37,56 @@ def _load_project_env() -> None:
         log.error("Failed to load project .env: %s", e)
 
 
+def _detect_build_mode(message: str, metadata: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    "Build mode" is an explicit prefix-only mode to keep debugging responses short.
+
+    Triggers ONLY if the user's message starts with:
+      - "build mode"
+      - "build-mode"
+      - "[build]"
+
+    This is intentional so normal use of the word "test" won't accidentally trigger anything.
+
+    Returns: (build_mode_enabled, cleaned_message)
+    """
+    if metadata.get("build_mode") is True:
+        # If caller explicitly sets it, respect it.
+        return True, message.strip()
+
+    raw = (message or "").lstrip()
+    low = raw.lower()
+
+    triggers = ("build mode", "build-mode", "[build]")
+    for t in triggers:
+        if low.startswith(t):
+            cleaned = raw[len(t) :].strip(" :-\t\r\n")
+            # If they only said "build mode" with no content, keep it as-is (empty cleaned is ok)
+            return True, cleaned
+
+    return False, message.strip()
+
+
+def _system_prompt(build_mode: bool) -> str:
+    if build_mode:
+        return (
+            "You are John's local AI Co-Partner running in BUILD MODE for debugging.\n"
+            "Rules:\n"
+            "- Keep replies SHORT: 1-2 sentences max.\n"
+            "- No extra questions unless John explicitly asks a question.\n"
+            "- No emotional coaching, no filler, no lists unless John asks.\n"
+            "- If John's request is unclear, ask ONE short clarifying question.\n"
+            "- Focus on confirming what happened and what to do next.\n"
+            "Tone: calm, practical."
+        )
+
+    return (
+        "You are John's local AI Co-Partner running on his PC. "
+        "Be concise, practical, and supportive. He has dyslexia "
+        "and memory issues, so keep answers clear and step-by-step."
+    )
+
+
 class AIEngine:
     def __init__(
         self,
@@ -63,6 +113,10 @@ class AIEngine:
     def _infer_priority(self, message: str, metadata: Dict[str, Any]) -> str:
         text = message.lower()
 
+        # In build mode, we generally don't want to over-store every micro-test.
+        if metadata.get("build_mode") is True:
+            return "low"
+
         high_markers = [
             "remember this",
             "don't forget",
@@ -82,9 +136,7 @@ class AIEngine:
             "task",
         ]
 
-        if any(m in text for m in high_markers) or any(
-            m in text for m in todo_markers
-        ):
+        if any(m in text for m in high_markers) or any(m in text for m in todo_markers):
             return "high"
 
         if len(text) < 10:
@@ -100,17 +152,22 @@ class AIEngine:
         if metadata is None:
             metadata = {}
 
-        source = metadata.get("source", "unknown")
-        log.info("AIEngine.process called from source=%r", source)
+        # Detect optional BUILD MODE and clean the message.
+        build_mode, cleaned_message = _detect_build_mode(message, metadata)
+        metadata = dict(metadata)  # avoid mutating caller dict
+        metadata["build_mode"] = build_mode
 
-        priority = self._infer_priority(message, metadata)
+        source = metadata.get("source", "unknown")
+        log.info("AIEngine.process called from source=%r (build_mode=%s)", source, build_mode)
+
+        priority = self._infer_priority(cleaned_message, metadata)
         log.info("Inferred memory priority=%r", priority)
 
         # Store to memory
         if self.memory:
             try:
                 self.memory.store_message(
-                    message=message,
+                    message=cleaned_message,
                     metadata=metadata,
                     priority=priority,
                 )
@@ -123,7 +180,7 @@ class AIEngine:
             self.bus.publish(
                 "ai.message_received",
                 {
-                    "message": message,
+                    "message": cleaned_message,
                     "metadata": metadata,
                     "priority": priority,
                 },
@@ -135,22 +192,22 @@ class AIEngine:
         online_enabled = getattr(settings, "ONLINE_FEATURES_ENABLED", False)
         if self.offline_only or not online_enabled:
             log.info("Using OFFLINE response path.")
-            reply = self._call_offline(message, metadata)
+            reply = self._call_offline(cleaned_message, metadata)
         else:
             try:
-                reply = self._call_online(message, metadata)
+                reply = self._call_online(cleaned_message, metadata)
             except Exception as e:
                 log.exception(
                     "Online call failed; falling back to offline. Error: %s", e
                 )
-                reply = self._call_offline(message, metadata)
+                reply = self._call_offline(cleaned_message, metadata)
 
         # Publish "replied" event
         try:
             self.bus.publish(
                 "ai.message_replied",
                 {
-                    "message": message,
+                    "message": cleaned_message,
                     "reply": reply,
                     "metadata": metadata,
                     "priority": priority,
@@ -178,6 +235,8 @@ class AIEngine:
         log.info("DEBUG LOCAL_LLM_ENDPOINT = %r", local_endpoint)
         log.info("DEBUG LOCAL_LLM_MODEL_ID = %r", local_model_id)
 
+        build_mode = bool(metadata.get("build_mode"))
+
         if local_endpoint:
             log.info("Attempting LOCAL LLM endpoint: %s", local_endpoint)
 
@@ -187,11 +246,7 @@ class AIEngine:
                     "messages": [
                         {
                             "role": "system",
-                            "content": (
-                                "You are John's local AI Co-Partner running on his PC. "
-                                "Be concise, practical, and supportive. He has dyslexia "
-                                "and memory issues, so keep answers clear and step-by-step."
-                            ),
+                            "content": _system_prompt(build_mode),
                         },
                         {"role": "user", "content": message},
                     ],
@@ -208,9 +263,7 @@ class AIEngine:
                         if text:
                             log.info("Local LLM responded successfully.")
                             return text.strip()
-                    log.warning(
-                        "Local LLM returned no usable text; falling back to stub."
-                    )
+                    log.warning("Local LLM returned no usable text; falling back to stub.")
                 else:
                     log.warning(
                         "Local LLM HTTP error %s: %s",
@@ -222,10 +275,15 @@ class AIEngine:
 
         # Stub fallback if no endpoint or failure
         log.info("Using OFFLINE stub response path.")
-        trimmed = message.strip()
+        trimmed = (message or "").strip()
 
         if not trimmed:
-            return "I'm in offline mode, and you did not give me much to work with."
+            return "Build mode: say what to do next." if build_mode else (
+                "I'm in offline mode, and you did not give me much to work with."
+            )
+
+        if build_mode:
+            return f"Build mode: I heard → {trimmed}"
 
         return (
             "Offline brain v0 here. I do not have a full local model yet, but I heard you say:\n"
@@ -242,6 +300,8 @@ class AIEngine:
         if not api_key:
             log.warning("OPENAI_API_KEY not set; falling back to offline stub.")
             return self._call_offline(message, metadata)
+
+        build_mode = bool(metadata.get("build_mode"))
 
         log.info("Calling OpenAI online API path.")
         try:
@@ -263,11 +323,7 @@ class AIEngine:
                 "messages": [
                     {
                         "role": "system",
-                        "content": (
-                            "You are an AI Co-Partner helping John with coding, "
-                            "projects, and daily life. Be practical, step-by-step, "
-                            "and supportive."
-                        ),
+                        "content": _system_prompt(build_mode),
                     },
                     {"role": "user", "content": message},
                 ],
@@ -311,6 +367,7 @@ if __name__ == "__main__":
 
     print("=== AIEngine interactive test ===")
     print("Type something and press Enter. Type 'quit' to exit.")
+    print("Tip: start your message with 'build mode' to force short debug replies.\n")
 
     while True:
         try:
