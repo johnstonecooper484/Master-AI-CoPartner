@@ -229,3 +229,142 @@ Security & config: config/*.py, config/*.yaml
 
 This is now the canonical layout.
 If we ever change it, we treat it like a version change, not a stealth rewrite.
+
+
+---
+
+## CORE FEATURE – System Device Awareness & Default IO Behavior
+
+### Goal
+The AI Co-Partner must always be aware of the basic hardware and I/O devices available on the system, so it can:
+
+- Know what it can actually use (camera, microphone, speakers, keyboard, mouse, etc.)
+- Communicate clearly with the user about what is connected
+- Default safely to the system’s default input/output devices
+- Help the user fix “I can’t hear you / you can’t hear me” situations
+
+This is a **core requirement**, not an optional add-on.
+
+---
+
+### 1. Device Types to Detect
+
+On startup, and when requested, the Co-Partner should detect and keep track of:
+
+- **Audio Output Devices**
+  - Desktop speakers
+  - Headsets (USB, 3.5mm, Bluetooth)
+  - Earbuds (Bluetooth, wireless)
+- **Audio Input Devices**
+  - Built-in microphones
+  - Headset microphones
+  - USB / XLR mics
+  - Bluetooth hands-free mics
+- **Cameras**
+  - Built-in webcams
+  - USB cameras
+- **Input Devices**
+  - Keyboards (wired, wireless, Bluetooth)
+  - Mice (wired, wireless, Bluetooth)
+  - Other pointing devices (trackpads, etc.)
+
+The Co-Partner does not manage drivers; it only uses what the OS says is present.
+
+---
+
+### 2. Default Behavior
+
+By default:
+
+- The Co-Partner should:
+  - Use the **system default output device** for speaking (TTS).
+  - Use the **system default input device** for listening (voice/STT).
+
+- On first run, or when a new session starts, it should:
+  - Do a quick self-check:
+    - “I am using [Output Device Name] to speak.”
+    - “I am listening on [Input Device Name] for your voice.”
+  - Optionally say:
+    - “If you can’t hear me or I can’t hear you, ask me to list devices and we’ll switch.”
+
+---
+
+### 3. Device Listing & Selection (Core Logic)
+
+When asked (voice or text), the Co-Partner should be able to:
+
+1. **List devices** it sees, for example:
+
+   - “For speakers/output, I see:
+     - Desktop Speakers
+     - USB Gaming Headset
+     - Earbuds XYZ (Stereo)
+
+     For microphones/input, I see:
+     - USB Mic
+     - Earbuds XYZ (Hands-Free)
+     - Laptop Built-In Mic.”
+
+2. **Offer to switch**:
+
+   - “Which one do you want to use for my voice?”
+   - “Which one do you want me to listen on as your microphone?”
+
+3. **Apply the change** (where OS APIs allow):
+   - Set new default input/output OR
+   - Use that specific device just for the AI’s own audio IO.
+
+---
+
+### 4. “I Don’t Think You Can Hear Me” Logic
+
+If the AI detects:
+
+- No output device available  
+- Or the selected device suddenly disappears  
+- Or repeated failed responses from the user when voice is expected  
+
+Then it should:
+
+1. Say (via text and any available audio):
+   - “I’m not sure you can hear me on the current device.”
+2. Suggest:
+   - “Ask me to list audio devices and we’ll pick a different one.”
+3. Optionally fall back to:
+   - System default speakers
+   - Or another known-good device if available
+
+---
+
+### 5. Hotplug Awareness (New Devices Plugged In)
+
+Whenever possible (depending on OS and APIs):
+
+- If a **new audio device, camera, or input device** appears:
+  - The Co-Partner should notice and log it.
+  - Optionally say:
+    - “I see a new device connected: [Device Name].  
+       Do you want to use this for my voice, your mic, or camera?”
+
+- If a device disappears:
+  - Warn the user:
+    - “The device I was using is no longer available. I’ll switch back to the system default.”
+
+---
+
+### 6. Safety & Stability
+
+- The Co-Partner should:
+  - Never rapidly switch devices without user intent.
+  - Prefer stability over constant auto-changes.
+  - Always explain:
+    - What device it’s using now
+    - What device it wants to switch to (if any)
+
+- In case of confusion:
+  - Default to:
+    - System’s default speakers
+    - System’s default mic
+  - And clearly say what happened.
+
+---
