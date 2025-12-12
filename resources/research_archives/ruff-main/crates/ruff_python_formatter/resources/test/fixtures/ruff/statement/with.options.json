@@ -1,0 +1,9 @@
+[
+  {
+    "target_version": "3.8"
+  },
+  {
+    "target_version": "3.9",
+    "preview": "enabled"
+  }
+]

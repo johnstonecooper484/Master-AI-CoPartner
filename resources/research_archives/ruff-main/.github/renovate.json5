@@ -1,0 +1,106 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  dependencyDashboard: true,
+  suppressNotifications: ["prEditedNotification"],
+  extends: ["github>astral-sh/renovate-config"],
+  labels: ["internal"],
+  schedule: ["before 4am on Monday"],
+  semanticCommits: "disabled",
+  separateMajorMinor: false,
+  enabledManagers: ["github-actions", "pre-commit", "cargo", "pep621", "pip_requirements", "npm"],
+  cargo: {
+    // See https://docs.renovatebot.com/configuration-options/#rangestrategy
+    rangeStrategy: "update-lockfile",
+  },
+  pep621: {
+    // The default for this package manager is to only search for `pyproject.toml` files
+    // found at the repository root: https://docs.renovatebot.com/modules/manager/pep621/#file-matching
+    managerFilePatterns: ["^(python|scripts)/.*pyproject\\.toml$"],
+  },
+  pip_requirements: {
+    // The default for this package manager is to run on all requirements.txt files:
+    // https://docs.renovatebot.com/modules/manager/pip_requirements/#file-matching
+    // `fileMatch` doesn't work for excluding files; to exclude `requirements.txt` files
+    // outside the `doc/` directory, we instead have to use `ignorePaths`. Unlike `fileMatch`,
+    // which takes a regex string, `ignorePaths` takes a glob string, so we have to use
+    // a "negative glob pattern".
+    // See:
+    // - https://docs.renovatebot.com/modules/manager/#ignoring-files-that-match-the-default-filematch
+    // - https://docs.renovatebot.com/configuration-options/#ignorepaths
+    // - https://docs.renovatebot.com/string-pattern-matching/#negative-matching
+    ignorePaths: ["!docs/requirements*.txt"]
+  },
+  npm: {
+    // The default for this package manager is to only search for `package.json` files
+    // found at the repository root: https://docs.renovatebot.com/modules/manager/npm/#file-matching
+    managerFilePatterns: ["^playground/.*package\\.json$"],
+  },
+  "pre-commit": {
+    enabled: true,
+  },
+  packageRules: [
+    // Pin GitHub Actions to immutable SHAs.
+    {
+      matchDepTypes: ["action"],
+      pinDigests: true,
+    },
+    // Annotate GitHub Actions SHAs with a SemVer version.
+    {
+      extends: ["helpers:pinGitHubActionDigests"],
+      extractVersion: "^(?<version>v?\\d+\\.\\d+\\.\\d+)$",
+      versioning: "regex:^v?(?<major>\\d+)(\\.(?<minor>\\d+)\\.(?<patch>\\d+))?$",
+    },
+    {
+      // Group upload/download artifact updates, the versions are dependent
+      groupName: "Artifact GitHub Actions dependencies",
+      matchManagers: ["github-actions"],
+      matchDatasources: ["gitea-tags", "github-tags"],
+      matchPackageNames: ["actions/.*-artifact"],
+      description: "Weekly update of artifact-related GitHub Actions dependencies",
+    },
+    {
+      // This package rule disables updates for GitHub runners:
+      // we'd only pin them to a specific version
+      // if there was a deliberate reason to do so
+      groupName: "GitHub runners",
+      matchManagers: ["github-actions"],
+      matchDatasources: ["github-runners"],
+      description: "Disable PRs updating GitHub runners (e.g. 'runs-on: macos-14')",
+      enabled: false,
+    },
+    {
+      // Disable updates of `zip-rs`; intentionally pinned for now due to ownership change
+      // See: https://github.com/astral-sh/uv/issues/3642
+      matchPackageNames: ["zip"],
+      matchManagers: ["cargo"],
+      enabled: false,
+    },
+    {
+      groupName: "pre-commit dependencies",
+      matchManagers: ["pre-commit"],
+      description: "Weekly update of pre-commit dependencies",
+    },
+    {
+      groupName: "NPM Development dependencies",
+      matchManagers: ["npm"],
+      matchDepTypes: ["devDependencies"],
+      description: "Weekly update of NPM development dependencies",
+    },
+    {
+      groupName: "Monaco",
+      matchManagers: ["npm"],
+      matchPackageNames: ["monaco"],
+      description: "Weekly update of the Monaco editor",
+    },
+    {
+      groupName: "strum",
+      matchManagers: ["cargo"],
+      matchPackageNames: ["strum"],
+      description: "Weekly update of strum dependencies",
+    }
+  ],
+  vulnerabilityAlerts: {
+    commitMessageSuffix: "",
+    labels: ["internal", "security"],
+  },
+}

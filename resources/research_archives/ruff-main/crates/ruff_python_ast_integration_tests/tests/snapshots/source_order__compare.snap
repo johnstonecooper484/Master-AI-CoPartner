@@ -1,0 +1,13 @@
+---
+source: crates/ruff_python_ast_integration_tests/tests/source_order.rs
+expression: trace
+snapshot_kind: text
+---
+- ModModule
+  - StmtExpr
+    - ExprCompare
+      - ExprNumberLiteral
+      - Lt
+      - ExprName
+      - Lt
+      - ExprNumberLiteral

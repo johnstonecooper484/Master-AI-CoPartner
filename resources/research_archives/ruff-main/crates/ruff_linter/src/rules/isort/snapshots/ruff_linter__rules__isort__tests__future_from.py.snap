@@ -1,0 +1,14 @@
+---
+source: crates/ruff_linter/src/rules/isort/mod.rs
+---
+I001 [*] Import block is un-sorted or un-formatted
+ --> future_from.py:1:1
+  |
+1 | / import __future__
+2 | | from __future__ import annotations
+  | |__________________________________^
+  |
+help: Organize imports
+1 + from __future__ import annotations
+2 | import __future__
+  - from __future__ import annotations

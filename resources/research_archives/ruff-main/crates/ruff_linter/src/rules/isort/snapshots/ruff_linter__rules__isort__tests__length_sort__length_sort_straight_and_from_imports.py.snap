@@ -1,0 +1,24 @@
+---
+source: crates/ruff_linter/src/rules/isort/mod.rs
+---
+I001 [*] Import block is un-sorted or un-formatted
+ --> length_sort_straight_and_from_imports.py:1:1
+  |
+1 | / import mediuuuuuum
+2 | | import short
+3 | | import looooooooooooooooong
+4 | | from looooooooooooooong import a
+5 | | from mediuuuum import c
+6 | | from short import b
+  | |___________________^
+  |
+help: Organize imports
+1 + import short
+2 | import mediuuuuuum
+  - import short
+3 | import looooooooooooooooong
+  - from looooooooooooooong import a
+4 + from short import b
+5 | from mediuuuum import c
+  - from short import b
+6 + from looooooooooooooong import a

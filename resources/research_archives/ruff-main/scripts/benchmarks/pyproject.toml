@@ -1,0 +1,26 @@
+[project]
+name = "scripts"
+version = "0.14.8"
+description = ""
+authors = ["Charles Marsh <charlie.r.marsh@gmail.com>"]
+
+
+python = ">=3.10,<3.12"
+
+dependencies = ["autoflake", "autopep8", "black", "flake8", "isort", "pycodestyle", "pyflakes", "pylint", "yapf"]
+
+[dependency-groups]
+formatter = [
+    "black",
+    "yapf",
+    "autopep8",
+]
+linter = [
+    "autoflake",
+    "flake8",
+    "pycodestyle",
+    "pyflakes",
+    "pylint",
+    "isort",
+]
+

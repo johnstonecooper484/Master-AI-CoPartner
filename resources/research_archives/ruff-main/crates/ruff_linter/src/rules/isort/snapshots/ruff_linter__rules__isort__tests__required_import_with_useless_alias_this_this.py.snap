@@ -1,0 +1,10 @@
+---
+source: crates/ruff_linter/src/rules/isort/mod.rs
+---
+PLC0414 Required import does not rename original package.
+ --> this_this.py:1:8
+  |
+1 | import this as this
+  |        ^^^^^^^^^^^^
+  |
+help: Change required import or disable rule.

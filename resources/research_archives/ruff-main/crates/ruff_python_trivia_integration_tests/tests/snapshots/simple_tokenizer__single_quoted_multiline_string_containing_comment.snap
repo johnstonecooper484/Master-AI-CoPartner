@@ -1,0 +1,15 @@
+---
+source: crates/ruff_python_trivia_integration_tests/tests/simple_tokenizer.rs
+expression: test_case.tokenize_reverse()
+snapshot_kind: text
+---
+[
+    SimpleToken {
+        kind: Other,
+        range: 76..77,
+    },
+    SimpleToken {
+        kind: Bogus,
+        range: 0..76,
+    },
+]

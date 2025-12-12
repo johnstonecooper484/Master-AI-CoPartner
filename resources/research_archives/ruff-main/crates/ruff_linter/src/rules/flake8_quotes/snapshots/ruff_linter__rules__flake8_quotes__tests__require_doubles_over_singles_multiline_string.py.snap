@@ -1,0 +1,23 @@
+---
+source: crates/ruff_linter/src/rules/flake8_quotes/mod.rs
+---
+Q001 [*] Single quote multiline found but double quotes preferred
+ --> singles_multiline_string.py:1:5
+  |
+1 |   s = ''' This 'should'
+  |  _____^
+2 | | be
+3 | | 'linted' '''
+  | |____________^
+4 |
+5 |   s = """ This 'should'
+  |
+help: Replace single multiline quotes with double quotes
+  - s = ''' This 'should'
+1 + s = """ This 'should'
+2 | be
+  - 'linted' '''
+3 + 'linted' """
+4 | 
+5 | s = """ This 'should'
+6 | 'not' be

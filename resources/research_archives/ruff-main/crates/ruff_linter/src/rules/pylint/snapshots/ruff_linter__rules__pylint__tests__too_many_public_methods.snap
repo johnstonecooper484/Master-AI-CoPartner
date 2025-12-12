@@ -1,0 +1,43 @@
+---
+source: crates/ruff_linter/src/rules/pylint/mod.rs
+---
+PLR0904 Too many public methods (10 > 7)
+  --> too_many_public_methods.py:4:1
+   |
+ 4 | / class Everything:
+ 5 | |     foo = 1
+ 6 | |
+ 7 | |     def __init__(self):
+ 8 | |         pass
+ 9 | |
+10 | |     def _private(self):
+11 | |         pass
+12 | |
+13 | |     def method1(self):
+14 | |         pass
+15 | |
+16 | |     def method2(self):
+17 | |         pass
+18 | |
+19 | |     def method3(self):
+20 | |         pass
+21 | |
+22 | |     def method4(self):
+23 | |         pass
+24 | |
+25 | |     def method5(self):
+26 | |         pass
+27 | |
+28 | |     def method6(self):
+29 | |         pass
+30 | |
+31 | |     def method7(self):
+32 | |         pass
+33 | |
+34 | |     def method8(self):
+35 | |         pass
+36 | |
+37 | |     def method9(self):
+38 | |         pass
+   | |____________^
+   |

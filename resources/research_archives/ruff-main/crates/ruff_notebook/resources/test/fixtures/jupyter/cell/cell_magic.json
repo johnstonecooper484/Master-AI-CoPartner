@@ -1,0 +1,13 @@
+{
+  "execution_count": null,
+  "cell_type": "code",
+  "id": "1",
+  "metadata": {},
+  "outputs": [],
+  "source": [
+    "%%script bash\n",
+    "for i in 1 2 3; do\n",
+    "  echo $i\n",
+    "done"
+  ]
+}

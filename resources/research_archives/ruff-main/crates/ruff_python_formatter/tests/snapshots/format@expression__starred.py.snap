@@ -1,0 +1,102 @@
+---
+source: crates/ruff_python_formatter/tests/fixtures.rs
+input_file: crates/ruff_python_formatter/resources/test/fixtures/ruff/expression/starred.py
+snapshot_kind: text
+---
+## Input
+```python
+call(
+    # Leading starred comment
+    * # Trailing star comment
+    [
+        # Leading value comment
+        [What, i, this, s, very, long, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]
+    ] # trailing value comment
+)
+
+call(
+    # Leading starred comment
+    * ( # Leading value comment
+        [What, i, this, s, very, long, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]
+    ) # trailing value comment
+)
+
+call(
+    x,
+    # Leading starred comment
+    * # Trailing star comment
+    [
+        # Leading value comment
+        [What, i, this, s, very, long, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]
+    ] # trailing value comment
+)
+
+call(
+    x,
+    * # Trailing star comment
+    (  # Leading value comment
+        y
+    )
+)
+```
+
+## Output
+```python
+call(
+    # Leading starred comment
+    # Trailing star comment
+    *[
+        # Leading value comment
+        [
+            What,
+            i,
+            this,
+            s,
+            very,
+            long,
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+        ]
+    ]  # trailing value comment
+)
+
+call(
+    # Leading starred comment
+    *(  # Leading value comment
+        [
+            What,
+            i,
+            this,
+            s,
+            very,
+            long,
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+        ]
+    )  # trailing value comment
+)
+
+call(
+    x,
+    # Leading starred comment
+    # Trailing star comment
+    *[
+        # Leading value comment
+        [
+            What,
+            i,
+            this,
+            s,
+            very,
+            long,
+            aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,
+        ]
+    ],  # trailing value comment
+)
+
+call(
+    x,
+    # Trailing star comment
+    *(  # Leading value comment
+        y
+    ),
+)
+```

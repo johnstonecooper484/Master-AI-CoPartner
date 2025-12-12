@@ -1,0 +1,40 @@
+---
+source: crates/ruff_linter/src/rules/pyflakes/mod.rs
+---
+F841 [*] Local variable `x` is assigned to but never used
+ --> <filename>:7:26
+  |
+5 |     try:
+6 |         pass
+7 |     except ValueError as x:
+  |                          ^
+8 |         pass
+  |
+help: Remove assignment to unused variable `x`
+4  | def f():
+5  |     try:
+6  |         pass
+   -     except ValueError as x:
+7  +     except ValueError:
+8  |         pass
+9  | 
+10 |     try:
+
+F841 [*] Local variable `x` is assigned to but never used
+  --> <filename>:12:26
+   |
+10 |     try:
+11 |         pass
+12 |     except ValueError as x:
+   |                          ^
+13 |         pass
+   |
+help: Remove assignment to unused variable `x`
+9  | 
+10 |     try:
+11 |         pass
+   -     except ValueError as x:
+12 +     except ValueError:
+13 |         pass
+14 | 
+15 |     # This should resolve to the `x` in `x = 1`.

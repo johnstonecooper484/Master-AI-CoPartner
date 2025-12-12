@@ -1,0 +1,60 @@
+---
+source: crates/ruff_linter/src/rules/flake8_quotes/mod.rs
+---
+Q002 [*] Single quote docstring found but double quotes preferred
+ --> docstring_singles_function.py:2:5
+  |
+1 | def foo():
+2 |     '''function without params, single line docstring'''
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 |     ''' not a docstring'''
+4 |     return
+  |
+help: Replace single quotes docstring with double quotes
+1 | def foo():
+  -     '''function without params, single line docstring'''
+2 +     """function without params, single line docstring"""
+3 |     ''' not a docstring'''
+4 |     return
+5 | 
+
+Q002 [*] Single quote docstring found but double quotes preferred
+  --> docstring_singles_function.py:8:5
+   |
+ 7 |   def foo2():
+ 8 | /     '''
+ 9 | |         function without params, multiline docstring
+10 | |     '''
+   | |_______^
+11 |       ''' not a docstring'''
+12 |       return
+   |
+help: Replace single quotes docstring with double quotes
+5  | 
+6  | 
+7  | def foo2():
+   -     '''
+8  +     """
+9  |         function without params, multiline docstring
+   -     '''
+10 +     """
+11 |     ''' not a docstring'''
+12 |     return
+13 | 
+
+Q002 [*] Single quote docstring found but double quotes preferred
+  --> docstring_singles_function.py:27:5
+   |
+26 | def function_with_single_docstring(a):
+27 |     'Single line docstring'
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: Replace single quotes docstring with double quotes
+24 | 
+25 | 
+26 | def function_with_single_docstring(a):
+   -     'Single line docstring'
+27 +     "Single line docstring"
+28 | 
+29 | 
+30 | def double_inside_single(a):

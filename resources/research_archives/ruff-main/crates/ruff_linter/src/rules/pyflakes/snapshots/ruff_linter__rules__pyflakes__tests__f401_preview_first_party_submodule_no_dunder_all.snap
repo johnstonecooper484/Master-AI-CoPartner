@@ -1,0 +1,10 @@
+---
+source: crates/ruff_linter/src/rules/pyflakes/mod.rs
+---
+F401 `submodule.a` imported but unused; consider removing, adding to `__all__`, or using a redundant alias
+ --> __init__.py:1:8
+  |
+1 | import submodule.a
+  |        ^^^^^^^^^^^
+  |
+help: Use an explicit re-export: `import submodule as submodule; import submodule.a`

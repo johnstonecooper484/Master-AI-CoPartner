@@ -1,0 +1,10 @@
+---
+source: crates/ruff_linter/src/comments/shebang.rs
+expression: "ShebangDirective::try_extract(source)"
+snapshot_kind: text
+---
+Some(
+    ShebangDirective(
+        "/usr/bin/env python # trailing comment",
+    ),
+)
