@@ -18,6 +18,7 @@ from core.memory.memory_manager import MemoryManager
 from core.ai_engine import AIEngine
 from core.hotkeys import start_hotkeys
 from core.io.speech.listener import start_voice_listener
+from core.intent_router import IntentRouter
 
 log = get_logger("core_main")
 
@@ -65,24 +66,46 @@ def main() -> None:
     """Main entrypoint used by `python -m core.main`."""
     log.info("Starting Master AI Co-Partner core.main")
 
-    # Create a shared EventBus so engine, hotkeys, and voice listener see the same events
+    # Shared EventBus
     bus = EventBus()
 
-    # Build the engine using that shared bus
+    # Core engine
     engine = build_engine(event_bus=bus)
 
-    # Add local TTS for voice replies
+    # Intent router (Think-Before-Speak gate)
+    intent_router = IntentRouter()
+    
+    # --- Stream/UI permission events (hotkeys publish these now; UI will later too) ---
+    def handle_auto_reply_set(data):
+        payload = data or {}
+        enabled = bool(payload.get("enabled", False))
+        intent_router.set_auto_reply(enabled)
+        log.info(f"Auto-reply set -> {enabled}")
+
+    def handle_respond_now(_data):
+        intent_router.trigger_respond_now()
+        log.info("Respond-now requested")
+
+    def handle_respond_suggestion(_data):
+        intent_router.trigger_respond_to_suggestion()
+        log.info("Respond-to-suggestion requested")
+
+    bus.subscribe("ui.auto_reply.set", handle_auto_reply_set)
+    bus.subscribe("ui.respond_now", handle_respond_now)
+    bus.subscribe("ui.respond_suggestion", handle_respond_suggestion)
+
+
+    # Local TTS
     tts = LocalTTS()
 
-    # Start global hotkeys (F12 toggle) using the same bus
+    # Hotkeys
     start_hotkeys(event_bus=bus)
 
-    # Start the voice listener that reacts to F12 listen_toggle events
+    # Voice listener (STT)
     start_voice_listener(bus)
 
-    # Route transcribed voice text into the AI engine
+    # Handle transcribed voice input
     def handle_voice_transcribed(data):
-        # data is expected to be a dict like {"text": "..."}
         payload = data or {}
         text = payload.get("text", "")
 
@@ -92,10 +115,12 @@ def main() -> None:
 
         text = text.strip()
 
-        # NEW: if empty text, still give spoken feedback
         if not text:
             log.info("voice.transcribed event received with empty text.")
-            fallback = "I heard something, but I could not understand the words. Please say it again."
+            fallback = (
+                "I heard something, but I could not understand the words. "
+                "Please say it again."
+            )
             try:
                 print(f"\nAI (voice): {fallback}\n")
                 tts.speak(fallback)
@@ -105,21 +130,34 @@ def main() -> None:
 
         log.info(f"Voice input text: {text!r}")
 
+        # Register voice input as a chat-style message
+        intent_router.register_chat_message({
+            "user": "voice",
+            "text": text,
+            "source": "voice_input",
+        })
+
         try:
-            # Process this like a normal user message, but mark it as voice input
-            reply = engine.process(text, {"source": "voice_input"})
+            # Let the intent router decide if speech is allowed
+            final_reply = intent_router.route_intent(
+                ai_engine=engine,
+                vision_description=None,  # vision plugs in later
+            )
         except Exception as exc:
-            log.exception(f"Error processing voice input: {exc}")
+            log.exception(f"Error routing voice intent: {exc}")
             return
 
-        # Console echo + spoken reply
-        try:
-            print(f"\nAI (voice): {reply}\n")
-            tts.speak(reply)
-        except Exception as exc:
-            log.exception(f"Error printing or speaking AI voice reply: {exc}")
+        # Speak only if router approved a response
+        if final_reply:
+            try:
+                print(f"\nAI (voice): {final_reply}\n")
+                tts.speak(final_reply)
+            except Exception as exc:
+                log.exception(f"Error printing or speaking AI voice reply: {exc}")
+        else:
+            log.info("IntentRouter suppressed speech output.")
 
-    # Subscribe the handler to the EventBus
+    # Subscribe to voice events
     bus.subscribe("voice.transcribed", handle_voice_transcribed)
 
     print_startup_banner(engine)
