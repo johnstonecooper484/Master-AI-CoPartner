@@ -103,10 +103,40 @@ _watch_save_debug_images: bool = True
 _last_focus_signature: str = ""
 
 
+_last_focus_signature: str = ""
+
+
+# ---- Vision -> Memory permission gate (default OFF) ----
+_perm_lock = threading.Lock()
+_vision_memory_allowed: bool = False
+
+
+def set_vision_memory_allowed(allowed: bool) -> None:
+    """Controls whether downstream code is allowed to write vision-derived info into memory."""
+    global _vision_memory_allowed
+    with _perm_lock:
+        _vision_memory_allowed = bool(allowed)
+
+
+def is_vision_memory_allowed() -> bool:
+    """Returns current permission state (default False)."""
+    with _perm_lock:
+        return bool(_vision_memory_allowed)
+
+
+def toggle_vision_memory_allowed() -> bool:
+    """Flips permission state and returns the new value."""
+    global _vision_memory_allowed
+    with _perm_lock:
+        _vision_memory_allowed = not _vision_memory_allowed
+        return _vision_memory_allowed
+
+
 def _ensure_tmp_vision_dir() -> str:
     path = os.path.join("tmp", "vision")
     os.makedirs(path, exist_ok=True)
     return path
+
 
 
 def _now_iso() -> str:
@@ -294,6 +324,22 @@ def build_snapshot(
         height=height,
         notes=notes,
         warnings=warnings,
+    )
+
+
+
+# ---- One-shot capture (Describe Now) ----
+def describe_now(
+    detail: str = "light",
+    region: Optional[Region] = None,
+    save_debug_image: bool = True,
+) -> VisionSnapshot:
+    """One-shot snapshot capture for a hotkey/button (Describe Now)."""
+    return build_snapshot(
+        detail=detail,
+        region=region,
+        capture=True,
+        save_debug_image=save_debug_image,
     )
 
 
