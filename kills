@@ -1,0 +1,179 @@
+[1mdiff --git a/core/command_handler.py b/core/command_handler.py[m
+[1mindex 4b1904e0..a311fda1 100644[m
+[1m--- a/core/command_handler.py[m
+[1m+++ b/core/command_handler.py[m
+[36m@@ -2,13 +2,50 @@[m
+ [m
+ from __future__ import annotations[m
+ [m
+[32m+[m[32mimport json[m
+ import logging[m
+[32m+[m[32mimport time[m
+ from dataclasses import dataclass[m
+[31m-from typing import Any, Dict, Optional[m
+[32m+[m[32mfrom pathlib import Path[m
+[32m+[m[32mfrom typing import Any, Dict, Optional, Tuple[m
+ [m
+ logger = logging.getLogger("ai_copartner.command_handler")[m
+ [m
+ [m
+[32m+[m[32m# ------------------------------------------------------------[m
+[32m+[m[32m# Permission tiers (simple + explicit)[m
+[32m+[m[32m# ------------------------------------------------------------[m
+[32m+[m
+[32m+[m[32mROLE_EVERYONE = "everyone"[m
+[32m+[m[32mROLE_SUBSCRIBER = "subscriber"[m
+[32m+[m[32mROLE_VIP = "vip"[m
+[32m+[m[32mROLE_MODERATOR = "moderator"[m
+[32m+[m[32mROLE_BROADCASTER = "broadcaster"[m
+[32m+[m
+[32m+[m[32mROLE_ORDER = {[m
+[32m+[m[32m    ROLE_EVERYONE: 0,[m
+[32m+[m[32m    ROLE_SUBSCRIBER: 1,[m
+[32m+[m[32m    ROLE_VIP: 2,[m
+[32m+[m[32m    ROLE_MODERATOR: 3,[m
+[32m+[m[32m    ROLE_BROADCASTER: 4,[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef _norm_role(role: str) -> str:[m
+[32m+[m[32m    r = (role or "").strip().lower()[m
+[32m+[m[32m    return r if r in ROLE_ORDER else ROLE_EVERYONE[m
+[32m+[m
+[32m+[m
+[32m+[m[32mdef _role_allows(user_role: str, required_role: str) -> bool:[m
+[32m+[m[32m    u = ROLE_ORDER.get(_norm_role(user_role), 0)[m
+[32m+[m[32m    req = ROLE_ORDER.get(_norm_role(required_role), 0)[m
+[32m+[m[32m    return u >= req[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ------------------------------------------------------------[m
+[32m+[m[32m# Data models[m
+[32m+[m[32m# ------------------------------------------------------------[m
+[32m+[m
+ @dataclass[m
+ class CommandResult:[m
+     """Simple result object for commands."""[m
+[36m@@ -24,27 +61,122 @@[m [mclass CommandResult:[m
+         }[m
+ [m
+ [m
+[32m+[m[32m@dataclass[m
+[32m+[m[32mclass CommandDefinition:[m
+[32m+[m[32m    name: str[m
+[32m+[m[32m    response: str[m
+[32m+[m[32m    permission: str = ROLE_EVERYONE[m
+[32m+[m[32m    cooldown_seconds: float = 3.0          # global per-command cooldown[m
+[32m+[m[32m    user_cooldown_seconds: float = 10.0    # per-user cooldown for this command[m
+[32m+[m[32m    enabled: bool = True[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ------------------------------------------------------------[m
+[32m+[m[32m# Command Handler[m
+[32m+[m[32m# ------------------------------------------------------------[m
+[32m+[m
+ class CommandHandler:[m
+     """[m
+     Central place where all high-level commands funnel through.[m
+ [m
+[31m-    Later:[m
+[31m-    - Voice input will call handle_command(...)[m
+[31m-    - UI / hotkeys can also call handle_command(...)[m
+[31m-    - Security can inspect commands here in one place[m
+[32m+[m[32m    Now supports:[m
+[32m+[m[32m    - Built-in core commands (ping/help)[m
+[32m+[m[32m    - Chat-style commands: !command[m
+[32m+[m[32m    - Permission tiers[m
+[32m+[m[32m    - Cooldowns (global + per-user)[m
+[32m+[m[32m    - Optional JSON config loading (safe if missing)[m
+     """[m
+ [m
+[31m-    def __init__(self) -> None:[m
+[32m+[m[32m    def __init__(self, commands_path: Optional[str | Path] = None) -> None:[m
+         logger.info("CommandHandler initialized")[m
+ [m
+[31m-        # In the future, this can be dynamic:[m
+[31m-        # - loaded from config[m
+[31m-        # - extended by plugins / skills[m
+[32m+[m[32m        # Built-ins (always available)[m
+         self._built_in_commands = {[m
+             "ping": self._cmd_ping,[m
+             "help": self._cmd_help,[m
+         }[m
+ [m
+[32m+[m[32m        # Custom commands (loaded from file if present)[m
+[32m+[m[32m        self._custom_commands: Dict[str, CommandDefinition] = {}[m
+[32m+[m
+[32m+[m[32m        # Cooldown tracking[m
+[32m+[m[32m        self._last_used_global: Dict[str, float] = {}[m
+[32m+[m[32m        self._last_used_user: Dict[Tuple[str, str], float] = {}  # (command, user) -> ts[m
+[32m+[m
+[32m+[m[32m        # Optional custom commands config[m
+[32m+[m[32m        self._commands_path = Path(commands_path) if commands_path else self._default_commands_path()[m
+[32m+[m[32m        self.reload_custom_commands()[m
+[32m+[m
+[32m+[m[32m    # ---------------------------------------------------------[m
+[32m+[m[32m    # Paths / Loading[m
+[32m+[m[32m    # ---------------------------------------------------------[m
+[32m+[m
+[32m+[m[32m    def _default_commands_path(self) -> Path:[m
+[32m+[m[32m        """[m
+[32m+[m[32m        Safe default location. If it doesn't exist, nothing breaks.[m
+[32m+[m[32m        You can change this later to match your final project tree.[m
+[32m+[m[32m        """[m
+[32m+[m[32m        # Try to anchor to project root: .../Master-AI-CoPartner/[m
+[32m+[m[32m        # This file is typically: <root>/core/command_handler.py[m
+[32m+[m[32m        root = Path(__file__).resolve().parents[1][m
+[32m+[m[32m        return root / "data" / "skills" / "streaming" / "commands.json"[m
+[32m+[m
+[32m+[m[32m    def reload_custom_commands(self) -> None:[m
+[32m+[m[32m        """[m
+[32m+[m[32m        Load commands from JSON if available.[m
+[32m+[m[32m        Format:[m
+[32m+[m[32m        {[m
+[32m+[m[32m          "hello": {"response":"Hi!", "permission":"everyone", "cooldown_seconds":3, "user_cooldown_seconds":10, "enabled":true},[m
+[32m+[m[32m          "so": {"response":"Shoutout @{{user}}", "permission":"moderator"}[m
+[32m+[m[32m        }[m
+[32m+[m[32m        """[m
+[32m+[m[32m        path = self._commands_path[m
+[32m+[m[32m        self._custom_commands = {}[m
+[32m+[m
+[32m+[m[32m        if not path.exists():[m
+[32m+[m[32m            logger.info("Custom commands file not found (ok): %s", path)[m
+[32m+[m[32m            return[m
+[32m+[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            raw = json.loads(path.read_text(encoding="utf-8"))[m
+[32m+[m[32m            if not isinstance(raw, dict):[m
+[32m+[m[32m                raise ValueError("commands.json must be a JSON object at top level")[m
+[32m+[m
+[32m+[m[32m            loaded = 0[m
+[32m+[m[32m            for name, cfg in raw.items():[m
+[32m+[m[32m                if not isinstance(name, str):[m
+[32m+[m[32m                    continue[m
+[32m+[m[32m                if not isinstance(cfg, dict):[m
+[32m+[m[32m                    continue[m
+[32m+[m
+[32m+[m[32m                cmd_name = name.strip().lower().lstrip("!")[m
+[32m+[m[32m                if not cmd_name:[m
+[32m+[m[32m                    continue[m
+[32m+[m
+[32m+[m[32m                response = str(cfg.get("response", "")).strip()[m
+[32m+[m[32m                if not response:[m
+[32m+[m[32m                    continue[m
+[32m+[m
+[32m+[m[32m                cd = CommandDefinition([m
+[32m+[m[32m                    name=cmd_name,[m
+[32m+[m[32m                    response=response,[m
+[32m+[m[32m                    permission=_norm_role(str(cfg.get("permission", ROLE_EVERYONE))),[m
+[32m+[m[32m                    cooldown_seconds=float(cfg.get("cooldown_seconds", 3.0) or 3.0),[m
+[32m+[m[32m                    user_cooldown_seconds=float(cfg.get("user_cooldown_seconds", 10.0) or 10.0),[m
+[32m+[m[32m                    enabled=bool(cfg.get("enabled", True)),[m
+[32m+[m[32m                )[m
+[32m+[m[32m                self._custom_commands[cmd_name] = cd[m
+[32m+[m[32m                loaded += 1[m
+[32m+[m
+[32m+[m[32m            logger.info("Loaded %d custom commands from %s", loaded, path)[m
+[32m+[m
+[32m+[m[32m        except Exception as exc:[m
+[32m+[m[32m            logger.exception("Failed to load custom commands fro

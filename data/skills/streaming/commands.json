@@ -1,0 +1,16 @@
+{
+  "hello": {
+    "response": "Hey {{user}} 👋",
+    "permission": "everyone",
+    "cooldown_seconds": 3,
+    "user_cooldown_seconds": 10,
+    "enabled": true
+  },
+  "so": {
+    "response": "Shoutout to {{args}}! Go show some love 🔥",
+    "permission": "moderator",
+    "cooldown_seconds": 10,
+    "user_cooldown_seconds": 30,
+    "enabled": true
+  }
+}
